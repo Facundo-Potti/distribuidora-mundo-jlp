@@ -1,13 +1,7 @@
 <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Círculo rojo de fondo -->
   <circle cx="60" cy="60" r="60" fill="#DC2626"/>
-  
-  <!-- Monograma DM en blanco -->
-  <path d="M30 25 L30 95 M30 25 L50 25 L50 45 M50 45 L30 45 M50 45 L50 65 M50 65 L30 65 M50 65 L50 85 M50 85 L70 85 L70 65 M70 65 L90 65 L90 85 M70 25 L70 45 M70 45 L90 45 L90 25" 
-        stroke="white" 
-        stroke-width="6" 
-        stroke-linecap="round" 
-        stroke-linejoin="round"
-        fill="none"/>
+  <!-- Monograma estilizado M/JLP con diseño más elegante -->
+  <path d="M35 30 L35 90 M35 50 Q30 60 35 70 Q30 80 35 90" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M50 30 L50 90 M50 50 L70 50 M70 30 L70 90" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M85 30 L85 90 M85 50 Q90 60 85 70 Q90 80 85 90" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>
-

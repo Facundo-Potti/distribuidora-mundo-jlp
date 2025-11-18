@@ -1,7 +1,34 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package, ShoppingCart, Truck, Heart } from "lucide-react"
+import { useEffect, useState, useRef } from "react"
 
 export function FeaturesSection() {
+  const [isVisible, setIsVisible] = useState(false)
+  const sectionRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current)
+      }
+    }
+  }, [])
+
   const features = [
     {
       icon: Package,
@@ -26,9 +53,11 @@ export function FeaturesSection() {
   ]
 
   return (
-    <section className="py-16">
+    <section ref={sectionRef} className="py-16">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
+        <div className={`text-center mb-12 transition-all duration-700 ${
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        }`}>
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">
             ¿Por qué nosotros?
           </h2>
@@ -41,10 +70,16 @@ export function FeaturesSection() {
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <Card key={index}>
+              <Card 
+                key={index}
+                className={`transition-all duration-500 hover:shadow-xl hover:-translate-y-2 ${
+                  isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                }`}
+                style={{ transitionDelay: `${(index + 1) * 100}ms` }}
+              >
                 <CardHeader>
                   <div className="flex justify-center mb-4">
-                    <div className="rounded-full bg-primary/10 p-3">
+                    <div className="rounded-full bg-primary/10 p-3 transition-transform duration-300 hover:scale-110 hover:bg-primary/20">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
                   </div>

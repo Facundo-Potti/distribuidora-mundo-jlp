@@ -3,11 +3,16 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+})
 
 export const metadata: Metadata = {
   title: "Distribuidora MUNDO JLP - Materias Primas para Panaderías y Confiterías",
   description: "Distribuidora mayorista de materias primas para panaderías, confiterías, pizzerías y más. Más de 40 años en el mercado.",
+  keywords: "distribuidora, materias primas, panadería, confitería, pizzería, mayorista",
 }
 
 export default function RootLayout({

@@ -1,7 +1,34 @@
+"use client"
+
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Package, Calendar } from "lucide-react"
+import { useEffect, useState, useRef } from "react"
 
 export function StatsSection() {
+  const [isVisible, setIsVisible] = useState(false)
+  const sectionRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current)
+      }
+    }
+  }, [])
+
   const stats = [
     {
       icon: Users,
@@ -24,16 +51,22 @@ export function StatsSection() {
   ]
 
   return (
-    <section className="py-16 bg-gray-50">
+    <section ref={sectionRef} className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {stats.map((stat, index) => {
             const Icon = stat.icon
             return (
-              <Card key={index} className="text-center">
+              <Card 
+                key={index} 
+                className={`text-center transition-all duration-500 hover:shadow-lg hover:-translate-y-1 ${
+                  isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                }`}
+                style={{ transitionDelay: `${index * 100}ms` }}
+              >
                 <CardContent className="pt-6">
                   <div className="flex justify-center mb-4">
-                    <div className="rounded-full bg-primary/10 p-4">
+                    <div className="rounded-full bg-primary/10 p-4 transition-transform duration-300 hover:scale-110">
                       <Icon className="h-8 w-8 text-primary" />
                     </div>
                   </div>

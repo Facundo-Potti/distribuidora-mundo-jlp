@@ -13,25 +13,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Logo } from "@/components/logo"
 
 export function Header() {
   const { data: session } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white">
+    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur-sm shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-              <span className="text-xl font-bold text-white">DM</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-normal text-gray-600">Distribuidora</span>
-              <span className="text-lg font-bold text-black">MUNDO JLP</span>
-            </div>
-          </Link>
+          <Logo />
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">

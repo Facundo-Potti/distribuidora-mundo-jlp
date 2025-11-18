@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Instagram, Phone, Mail } from "lucide-react"
+import { Logo } from "@/components/logo"
 
 export function Footer() {
   return (
@@ -8,14 +9,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo y Descripción */}
           <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-                <span className="text-xl font-bold text-white">DM</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-normal text-gray-300">Distribuidora</span>
-                <span className="text-lg font-bold">MUNDO JLP</span>
-              </div>
+            <div className="mb-4">
+              <Logo className="text-white" />
             </div>
             <p className="text-gray-300 text-sm mb-4">
               Distribuidora mayorista de materias primas para panaderías, confiterías, 
