@@ -38,7 +38,6 @@ export default function EstadisticasPage() {
         const todosPedidos: Pedido[] = JSON.parse(pedidosGuardados)
         // Filtrar pedidos del usuario actual
         const pedidos = todosPedidos.filter((p) => 
-          p.clienteEmail === session.user?.email || 
           p.cliente === session.user?.name
         )
         setPedidosUsuario(pedidos)
