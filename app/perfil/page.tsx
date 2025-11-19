@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,9 +12,24 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 
+interface PerfilUsuario {
+  nombre: string
+  email: string
+  telefono: string
+  direccion: string
+  fechaRegistro: string
+}
+
 export default function PerfilPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [guardado, setGuardado] = useState(false)
+  const [formData, setFormData] = useState({
+    nombre: "",
+    telefono: "",
+    direccion: "",
+  })
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -22,10 +37,72 @@ export default function PerfilPage() {
     }
   }, [status, router])
 
+  useEffect(() => {
+    if (session?.user) {
+      // Cargar datos del perfil desde localStorage
+      const perfilGuardado = localStorage.getItem(`perfil_${session.user.email}`)
+      if (perfilGuardado) {
+        const perfil: PerfilUsuario = JSON.parse(perfilGuardado)
+        setFormData({
+          nombre: perfil.nombre || session.user.name || "",
+          telefono: perfil.telefono || "",
+          direccion: perfil.direccion || "",
+        })
+      } else {
+        setFormData({
+          nombre: session.user.name || "",
+          telefono: "",
+          direccion: "",
+        })
+      }
+    }
+  }, [session])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setGuardado(false)
+
+    if (!session?.user?.email) return
+
+    const perfilCompleto: PerfilUsuario = {
+      nombre: formData.nombre,
+      email: session.user.email,
+      telefono: formData.telefono,
+      direccion: formData.direccion,
+      fechaRegistro: new Date().toISOString().split("T")[0],
+    }
+
+    // Guardar en localStorage
+    localStorage.setItem(`perfil_${session.user.email}`, JSON.stringify(perfilCompleto))
+
+    setTimeout(() => {
+      setLoading(false)
+      setGuardado(true)
+      setTimeout(() => setGuardado(false), 3000)
+    }, 500)
+  }
+
+  // Obtener pedidos del usuario
+  const obtenerPedidosUsuario = () => {
+    if (!session?.user?.email) return []
+    const pedidosGuardados = localStorage.getItem("admin_pedidos")
+    if (!pedidosGuardados) return []
+    const pedidos = JSON.parse(pedidosGuardados)
+    // Buscar pedidos del cliente por email o nombre
+    return pedidos.filter((p: any) => 
+      p.clienteEmail === session.user?.email || 
+      p.cliente === session.user?.name ||
+      p.cliente === formData.nombre
+    )
+  }
+
+  const pedidosUsuario = obtenerPedidosUsuario()
+
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Cargando...</p>
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
@@ -50,55 +127,66 @@ export default function PerfilPage() {
                   Actualiza tu información personal y de contacto
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-4 pb-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={session.user?.image || ""} alt={session.user?.name || ""} />
-                    <AvatarFallback className="text-2xl">
-                      {session.user?.name?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">{session.user?.name || "Usuario"}</h3>
-                    <p className="text-sm text-gray-600">{session.user?.email}</p>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="flex items-center space-x-4 pb-4">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={session.user?.image || ""} alt={session.user?.name || ""} />
+                      <AvatarFallback className="text-2xl">
+                        {session.user?.name?.charAt(0).toUpperCase() || formData.nombre?.charAt(0).toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="text-xl font-semibold">{formData.nombre || session.user?.name || "Usuario"}</h3>
+                      <p className="text-sm text-gray-600">{session.user?.email}</p>
+                    </div>
                   </div>
-                </div>
-                <Separator />
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nombre completo</Label>
-                    <Input
-                      id="name"
-                      defaultValue={session.user?.name || ""}
-                      placeholder="Tu nombre"
-                    />
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nombre completo</Label>
+                      <Input
+                        id="name"
+                        value={formData.nombre}
+                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        placeholder="Tu nombre"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={session.user?.email || ""}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Teléfono</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.telefono}
+                        onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                        placeholder="+54 11 1234-5678"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Dirección</Label>
+                      <Input
+                        id="address"
+                        value={formData.direccion}
+                        onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                        placeholder="Tu dirección"
+                      />
+                    </div>
+                    <Button type="submit" disabled={loading} className="w-full">
+                      {loading ? "Guardando..." : guardado ? "✓ Guardado" : "Guardar Cambios"}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      defaultValue={session.user?.email || ""}
-                      disabled
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+54 11 1234-5678"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Dirección</Label>
-                    <Input
-                      id="address"
-                      placeholder="Tu dirección"
-                    />
-                  </div>
-                  <Button>Guardar Cambios</Button>
-                </div>
+                </form>
               </CardContent>
             </Card>
 
@@ -110,17 +198,30 @@ export default function PerfilPage() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-600">Miembro desde</p>
-                  <p className="font-semibold">2024</p>
+                  <p className="font-semibold">
+                    {new Date().getFullYear()}
+                  </p>
                 </div>
                 <Separator />
                 <div>
                   <p className="text-sm text-gray-600">Pedidos realizados</p>
-                  <p className="font-semibold">0</p>
+                  <p className="font-semibold text-2xl text-primary">{pedidosUsuario.length}</p>
                 </div>
                 <Separator />
                 <div>
                   <p className="text-sm text-gray-600">Estado de cuenta</p>
                   <p className="font-semibold text-green-600">Activa</p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-sm text-gray-600">Rol</p>
+                  <p className="font-semibold">
+                    {session.user?.role === "admin" ? (
+                      <span className="text-primary">Administrador</span>
+                    ) : (
+                      <span className="text-blue-600">Cliente</span>
+                    )}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -131,4 +232,3 @@ export default function PerfilPage() {
     </div>
   )
 }
-

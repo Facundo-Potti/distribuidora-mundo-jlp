@@ -1,7 +1,12 @@
 <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="60" cy="60" r="60" fill="#DC2626"/>
-  <!-- Monograma estilizado M/JLP con diseño más elegante -->
-  <path d="M35 30 L35 90 M35 50 Q30 60 35 70 Q30 80 35 90" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M50 30 L50 90 M50 50 L70 50 M70 30 L70 90" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M85 30 L85 90 M85 50 Q90 60 85 70 Q90 80 85 90" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="60" cy="60" r="60" fill="#B91C1C"/>
+  <!-- Monograma estilizado basado en el diseño original -->
+  <g stroke="white" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Línea vertical central que se extiende hacia arriba -->
+    <line x1="60" y1="25" x2="60" y2="95"/>
+    <!-- Curva izquierda formando "C" o "d" -->
+    <path d="M38 35 Q32 50 38 65 Q32 80 38 95"/>
+    <!-- Forma angular derecha "M" o "L" -->
+    <path d="M82 35 L82 95 M82 50 L60 50"/>
+  </g>
 </svg>

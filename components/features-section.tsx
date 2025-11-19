@@ -53,40 +53,40 @@ export function FeaturesSection() {
   ]
 
   return (
-    <section ref={sectionRef} className="py-16">
+    <section ref={sectionRef} className="py-20 md:py-24 bg-white">
       <div className="container mx-auto px-4">
-        <div className={`text-center mb-12 transition-all duration-700 ${
+        <div className={`text-center mb-16 transition-all duration-700 ${
           isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
         }`}>
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">
-            ¿Por qué nosotros?
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-black mb-4">
+            ¿Por qué elegirnos?
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
             Somos una empresa dedicada hace más de 40 años a la distribución y 
-            comercialización de productos alimenticios
+            comercialización de productos alimenticios de la más alta calidad
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
               <Card 
                 key={index}
-                className={`transition-all duration-500 hover:shadow-xl hover:-translate-y-2 ${
+                className={`border-2 border-gray-200 hover:border-primary transition-all duration-500 hover:shadow-xl hover:-translate-y-2 bg-white ${
                   isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
                 }`}
                 style={{ transitionDelay: `${(index + 1) * 100}ms` }}
               >
-                <CardHeader>
-                  <div className="flex justify-center mb-4">
-                    <div className="rounded-full bg-primary/10 p-3 transition-transform duration-300 hover:scale-110 hover:bg-primary/20">
-                      <Icon className="h-6 w-6 text-primary" />
+                <CardHeader className="pb-4">
+                  <div className="flex justify-center mb-6">
+                    <div className="rounded-full bg-primary/10 p-4 transition-all duration-300 hover:scale-110 hover:bg-primary/20">
+                      <Icon className="h-8 w-8 text-primary" />
                     </div>
                   </div>
-                  <CardTitle className="text-center">{feature.title}</CardTitle>
+                  <CardTitle className="text-center text-xl">{feature.title}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-center">
+                <CardContent className="pt-0">
+                  <CardDescription className="text-center text-base leading-relaxed">
                     {feature.description}
                   </CardDescription>
                 </CardContent>

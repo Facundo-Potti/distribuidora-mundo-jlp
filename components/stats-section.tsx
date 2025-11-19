@@ -51,28 +51,38 @@ export function StatsSection() {
   ]
 
   return (
-    <section ref={sectionRef} className="py-16 bg-gray-50">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <section ref={sectionRef} className="py-20 md:py-24 bg-gray-50 relative overflow-hidden">
+      <div className="container mx-auto px-4 relative z-10">
+        <div className={`text-center mb-12 transition-all duration-700 ${
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        }`}>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-black mb-4">
+            Números que nos respaldan
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Más de 40 años de experiencia al servicio de la industria gastronómica
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {stats.map((stat, index) => {
             const Icon = stat.icon
             return (
               <Card 
                 key={index} 
-                className={`text-center transition-all duration-500 hover:shadow-lg hover:-translate-y-1 ${
+                className={`text-center border-2 border-gray-200 hover:border-primary transition-all duration-500 hover:shadow-xl hover:-translate-y-2 bg-white ${
                   isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
                 }`}
-                style={{ transitionDelay: `${index * 100}ms` }}
+                style={{ transitionDelay: `${index * 150}ms` }}
               >
-                <CardContent className="pt-6">
-                  <div className="flex justify-center mb-4">
-                    <div className="rounded-full bg-primary/10 p-4 transition-transform duration-300 hover:scale-110">
-                      <Icon className="h-8 w-8 text-primary" />
+                <CardContent className="pt-8 pb-8">
+                  <div className="flex justify-center mb-6">
+                    <div className="rounded-full bg-primary/10 p-5 transition-all duration-300 hover:scale-110 hover:bg-primary/20">
+                      <Icon className="h-10 w-10 text-primary" />
                     </div>
                   </div>
-                  <h3 className="text-4xl font-bold text-primary mb-2">{stat.value}</h3>
-                  <h4 className="text-xl font-semibold text-black mb-2">{stat.label}</h4>
-                  <p className="text-sm text-gray-600">{stat.description}</p>
+                  <h3 className="text-5xl md:text-6xl font-extrabold text-primary mb-3">{stat.value}</h3>
+                  <h4 className="text-xl md:text-2xl font-bold text-black mb-3">{stat.label}</h4>
+                  <p className="text-sm md:text-base text-gray-600">{stat.description}</p>
                 </CardContent>
               </Card>
             )

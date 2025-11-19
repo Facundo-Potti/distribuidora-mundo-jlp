@@ -9,6 +9,7 @@ declare module "next-auth" {
       name?: string | null
       email?: string | null
       image?: string | null
+      role?: string | null
     }
   }
 }
@@ -16,6 +17,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string
+    role?: string
   }
 }
 
@@ -25,7 +27,15 @@ const users = [
     id: "1",
     name: "Usuario Demo",
     email: "demo@mundojlp.com",
-    password: "demo123", // En producción, esto debe estar hasheado
+    password: "demo123",
+    role: "user",
+  },
+  {
+    id: "2",
+    name: "Administrador",
+    email: "admin@mundojlp.com",
+    password: "admin123",
+    role: "admin",
   },
 ]
 
@@ -51,6 +61,7 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             name: user.name,
             email: user.email,
+            role: user.role,
           }
         }
 
@@ -69,12 +80,14 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.role = (user as any).role
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
+        session.user.role = token.role as string
       }
       return session
     },

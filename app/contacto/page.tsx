@@ -28,21 +28,26 @@ export default function ContactoPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8 text-center">Contactanos</h1>
+      <main className="flex-1 container mx-auto px-4 py-20">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-black">Contactanos</h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Estamos aquí para ayudarte con todas tus necesidades
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Información de Contacto */}
             <div className="space-y-6">
-              <Card>
+              <Card className="border-2 hover:border-primary transition-all duration-300 hover:shadow-xl">
                 <CardHeader>
-                  <CardTitle>Información de Contacto</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-2xl">Información de Contacto</CardTitle>
+                  <CardDescription className="text-base">
                     Estamos aquí para ayudarte
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="flex items-center space-x-3">
                     <Phone className="h-5 w-5 text-primary" />
                     <div>
@@ -87,10 +92,10 @@ export default function ContactoPage() {
             </div>
 
             {/* Formulario */}
-            <Card>
+            <Card className="border-2 hover:border-primary transition-all duration-300 hover:shadow-xl">
               <CardHeader>
-                <CardTitle>Envíanos un Mensaje</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl">Envíanos un Mensaje</CardTitle>
+                <CardDescription className="text-base">
                   Completa el formulario y nos pondremos en contacto contigo
                 </CardDescription>
               </CardHeader>
