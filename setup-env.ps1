@@ -16,3 +16,4 @@ DATABASE_URL="file:./dev.db"
 Write-Host "✅ Archivo .env.local creado exitosamente!" -ForegroundColor Green
 Write-Host "NEXTAUTH_SECRET generado: $secret" -ForegroundColor Yellow
 
+

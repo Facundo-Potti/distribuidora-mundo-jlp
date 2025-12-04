@@ -113,3 +113,4 @@ Cuando subes una imagen, se actualiza automáticamente el campo `imagen` del pro
 - Verifica los permisos de escritura
 - En producción, verifica la configuración del servicio en la nube
 
+

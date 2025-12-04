@@ -228,8 +228,8 @@ function parseCSV(filePath: string): ProductoCSV[] {
       precio: precioLimpio,
       unidad: unidad || 'UNI',
       stock: '0',
-      descripcion: tieneCodigo ? `Código: ${col5}` : null,
-      imagen: null,
+      descripcion: tieneCodigo ? `Código: ${col5}` : undefined,
+      imagen: undefined,
     }
 
     productos.push(producto)

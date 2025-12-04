@@ -119,8 +119,8 @@ function parseCSV(filePath: string): ProductoCSV[] {
       precio: precioLimpio,
       unidad: unidad,
       stock: '0',
-      descripcion: col5 && tieneCodigo ? `Código: ${col5}` : null,
-      imagen: null,
+      descripcion: col5 && tieneCodigo ? `Código: ${col5}` : undefined,
+      imagen: undefined,
     }
 
     // Validar que tenga nombre y precio válido
@@ -163,8 +163,8 @@ async function importProducts(csvPath: string) {
           precio: isNaN(precio) ? 0 : precio,
           unidad: producto.unidad.trim() || 'unidad',
           stock: isNaN(stock) ? 0 : stock,
-          descripcion: producto.descripcion?.trim() || null,
-          imagen: producto.imagen?.trim() || null,
+          descripcion: producto.descripcion?.trim() || undefined,
+          imagen: producto.imagen?.trim() || undefined,
           activo: true,
         }
 

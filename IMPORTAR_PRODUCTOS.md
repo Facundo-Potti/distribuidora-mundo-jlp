@@ -76,3 +76,4 @@ El script mostrará:
 - Usa punto (`.`) o coma (`,`) como separador decimal
 - Asegúrate de que los precios sean números válidos
 
+
