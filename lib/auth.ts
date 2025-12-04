@@ -1,5 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import { prisma } from "@/lib/prisma"
+import * as bcrypt from "bcryptjs"
 
 // Extender tipos de NextAuth
 declare module "next-auth" {
@@ -21,24 +23,6 @@ declare module "next-auth/jwt" {
   }
 }
 
-// Esta es una implementación básica. En producción, deberías usar una base de datos real
-const users = [
-  {
-    id: "1",
-    name: "Usuario Demo",
-    email: "demo@mundojlp.com",
-    password: "demo123",
-    role: "user",
-  },
-  {
-    id: "2",
-    name: "Administrador",
-    email: "admin@mundojlp.com",
-    password: "admin123",
-    role: "admin",
-  },
-]
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -52,20 +36,36 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = users.find(
-          (u) => u.email === credentials.email && u.password === credentials.password
-        )
+        try {
+          // Buscar usuario en la base de datos
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+          })
 
-        if (user) {
+          if (!user) {
+            return null
+          }
+
+          // Verificar contraseña
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
+
+          if (!isPasswordValid) {
+            return null
+          }
+
           return {
             id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
           }
+        } catch (error) {
+          console.error("Error en autenticación:", error)
+          return null
         }
-
-        return null
       },
     }),
   ],

@@ -9,6 +9,8 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+    // Permitir imágenes locales
+    unoptimized: false,
   },
   // Optimizaciones de rendimiento
   compress: true,

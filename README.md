@@ -18,6 +18,8 @@ Sitio web informativo y funcional para Distribuidora MUNDO JLP, distribuidora ma
 - Tailwind CSS
 - shadcn/ui
 - NextAuth.js
+- Prisma (ORM)
+- PostgreSQL
 
 ## Instalación
 
@@ -34,17 +36,39 @@ npm install
 cp .env.example .env.local
 ```
 
-4. Edita `.env.local` y agrega tu `NEXTAUTH_SECRET`:
+4. Configura la base de datos y variables de entorno:
+
+Edita `.env.local` y agrega:
 
 ```env
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=tu-clave-secreta-aqui
+DATABASE_URL="postgresql://usuario:password@localhost:5432/distribuidora_mundo_jlp?schema=public"
 ```
 
 Para generar un `NEXTAUTH_SECRET`, puedes usar:
 ```bash
+# Windows PowerShell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+
+# Linux/macOS
 openssl rand -base64 32
 ```
+
+5. Configura la base de datos:
+
+```bash
+# Generar cliente de Prisma
+npm run db:generate
+
+# Crear tablas en la base de datos
+npm run db:push
+
+# Poblar con datos iniciales
+npm run db:seed
+```
+
+> **Nota:** Para más detalles sobre la configuración de la base de datos, consulta [SETUP_DATABASE.md](./SETUP_DATABASE.md)
 
 ## Desarrollo
 
@@ -61,11 +85,10 @@ Para probar el sistema de autenticación, puedes usar:
 - **Email:** demo@mundojlp.com
 - **Contraseña:** demo123
 
-> **Nota:** Esta es una implementación básica para desarrollo. En producción, debes:
-> - Conectar a una base de datos real
-> - Implementar hash de contraseñas
+> **Nota:** La aplicación ahora usa una base de datos PostgreSQL con Prisma. Las contraseñas están hasheadas con bcrypt. Para producción, considera:
 > - Agregar validación de email
 > - Implementar recuperación de contraseña
+> - Configurar backups automáticos de la base de datos
 
 ## Estructura del Proyecto
 

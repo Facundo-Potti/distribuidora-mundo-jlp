@@ -41,6 +41,7 @@ import {
   X
 } from "lucide-react"
 import Image from "next/image"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 // Tipos
 interface Producto {
@@ -1099,12 +1100,21 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="imagen">URL de Imagen</Label>
+              <Label>Imagen del Producto</Label>
+              <ImageUpload
+                currentImage={formProducto.imagen}
+                onImageUploaded={(imageUrl) => setFormProducto({ ...formProducto, imagen: imageUrl })}
+                productId={productoEditando?.id.toString()}
+                productName={formProducto.nombre || 'producto'}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                O ingresa una URL manualmente:
+              </p>
               <Input
                 id="imagen"
                 value={formProducto.imagen}
                 onChange={(e) => setFormProducto({ ...formProducto, imagen: e.target.value })}
-                placeholder="https://images.unsplash.com/..."
+                placeholder="https://images.unsplash.com/... o /productos/imagen.jpg"
               />
             </div>
             <div className="space-y-2">

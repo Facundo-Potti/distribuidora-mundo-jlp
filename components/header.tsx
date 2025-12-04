@@ -18,7 +18,7 @@ export function Header() {
   return (
     <div className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur-sm shadow-sm" role="banner">
       <div className="container mx-auto px-4">
-        <div className="flex h-28 md:h-32 items-center justify-between">
+        <div className="flex h-20 md:h-24 items-center justify-between">
           {/* Logo */}
           <Logo />
 

@@ -4,48 +4,69 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
+    --background: 204 24% 96%;
+    --foreground: 214 17% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
-    --primary: 0 84% 50%;
+    --card-foreground: 214 17% 13%;
+    --primary: 209 100% 45%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 84% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 84% 50%;
-    --radius: 0.5rem;
+    --secondary: 205 87% 64%;
+    --secondary-foreground: 214 17% 13%;
+    --muted: 210 16% 92%;
+    --muted-foreground: 214 17% 13%;
+    --border: 210 16% 82%;
+    --input: 210 16% 88%;
+    --ring: 210 16% 65%;
+    --radius: 0.85rem;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(circle at top left, rgba(37, 210, 102, 0.15), transparent 35%),
+      radial-gradient(circle at 80% 20%, rgba(37, 168, 210, 0.15), transparent 40%);
+    color: hsl(var(--foreground));
+    min-height: 100vh;
   }
-  
+
   html {
     scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  p {
+    line-height: 1.7;
   }
 }
 
 @layer utilities {
   .bg-grid-pattern {
     background-image: 
-      linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-    background-size: 20px 20px;
+      linear-gradient(to right, rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+
+  .section-surface {
+    @apply bg-white/70 backdrop-blur-xl rounded-3xl border border-white/30 shadow-[0_20px_60px_rgba(15,23,42,0.15)];
+    padding: 2.5rem;
+  }
+
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl shadow-[0_20px_45px_rgba(15,23,42,0.15)];
+    padding: 1.5rem;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full px-6 py-3 bg-[hsl(209,100%,50%)] text-white font-semibold tracking-wide shadow-lg transition hover:translate-y-0.5 hover:shadow-[0_15px_35px_rgba(15,23,42,0.25)];
   }
 }
 
