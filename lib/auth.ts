@@ -37,14 +37,19 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          console.log(`🔐 Intentando autenticar: ${credentials.email}`)
+          
           // Buscar usuario en la base de datos
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
           })
 
           if (!user) {
+            console.error(`❌ Usuario no encontrado: ${credentials.email}`)
             return null
           }
+
+          console.log(`✅ Usuario encontrado: ${user.email}, rol: ${user.role}`)
 
           // Verificar contraseña
           const isPasswordValid = await bcrypt.compare(
@@ -53,8 +58,11 @@ export const authOptions: NextAuthOptions = {
           )
 
           if (!isPasswordValid) {
+            console.error(`❌ Contraseña inválida para: ${credentials.email}`)
             return null
           }
+
+          console.log(`✅ Usuario autenticado exitosamente: ${user.email} (rol: ${user.role})`)
 
           return {
             id: user.id,
