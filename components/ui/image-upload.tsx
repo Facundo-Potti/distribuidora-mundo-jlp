@@ -24,11 +24,32 @@ export function ImageUpload({
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Log inicial cuando el componente se monta
+  useEffect(() => {
+    console.log('🖼️ ImageUpload montado/actualizado:', {
+      productId,
+      productName,
+      currentImage,
+      preview,
+      tipoCurrentImage: typeof currentImage,
+      esSupabase: currentImage && currentImage.includes('supabase.co')
+    })
+  }, [])
+
   // Actualizar preview cuando currentImage cambie
   useEffect(() => {
+    console.log('🔄 ImageUpload - currentImage cambió:', {
+      currentImage,
+      tipo: typeof currentImage,
+      esString: typeof currentImage === 'string',
+      tieneContenido: currentImage && currentImage.trim() !== '',
+      esSupabase: currentImage && currentImage.includes('supabase.co')
+    })
     if (currentImage && currentImage.trim() !== '') {
+      console.log('✅ ImageUpload - Estableciendo preview:', currentImage)
       setPreview(currentImage)
     } else {
+      console.log('❌ ImageUpload - No hay imagen, limpiando preview')
       setPreview(null)
     }
   }, [currentImage])

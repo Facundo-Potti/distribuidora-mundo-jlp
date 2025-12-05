@@ -339,6 +339,12 @@ export default function AdminPage() {
   // Funciones de productos
   const abrirDialogProducto = (producto?: Producto) => {
     if (producto) {
+      console.log('📝 Abriendo diálogo para editar producto:', {
+        nombre: producto.nombre,
+        imagen: producto.imagen,
+        tipoImagen: typeof producto.imagen,
+        esSupabase: producto.imagen && producto.imagen.includes('supabase.co')
+      })
       setProductoEditando(producto)
       setFormProducto({
         nombre: producto.nombre,
@@ -349,6 +355,7 @@ export default function AdminPage() {
         descripcion: producto.descripcion || "",
         unidad: producto.unidad || "",
       })
+      console.log('✅ FormProducto actualizado con imagen:', producto.imagen)
     } else {
       setProductoEditando(null)
       setFormProducto({
