@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: "Distribuidora MUNDO JLP - Materias Primas para Panaderías y Confiterías",
   description: "Distribuidora mayorista de materias primas para panaderías, confiterías, pizzerías y más. Más de 40 años en el mercado.",
   keywords: "distribuidora, materias primas, panadería, confitería, pizzería, mayorista",
+  icons: {
+    icon: '/logo.svg',
+  },
 }
 
 export default function RootLayout({

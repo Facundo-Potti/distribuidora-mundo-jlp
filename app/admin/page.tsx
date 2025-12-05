@@ -86,6 +86,7 @@ export default function AdminPage() {
   const [categoriaFiltro, setCategoriaFiltro] = useState("")
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
   const [dialogProductoAbierto, setDialogProductoAbierto] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0) // Para forzar re-render de imágenes
   const [formProducto, setFormProducto] = useState({
     nombre: "",
     categoria: "",
@@ -397,20 +398,42 @@ export default function AdminPage() {
       console.log('📦 Producto formateado para UI:', nuevoProducto)
 
       // Actualizar estado local inmediatamente para reflejar cambios en la UI
+      let productosActualizados: Producto[]
+      
       if (productoEditando) {
-        const productosActualizados = productos.map((p) => 
+        productosActualizados = productos.map((p) => 
           p.id === productoEditando.id ? nuevoProducto : p
         )
-        setProductos(productosActualizados)
-        // Actualizar también productosFiltrados para que se refleje en la UI
-        setProductosFiltrados(productosFiltrados.map((p) => 
-          p.id === productoEditando.id ? nuevoProducto : p
-        ))
       } else {
-        const productosActualizados = [...productos, nuevoProducto]
-        setProductos(productosActualizados)
-        setProductosFiltrados(productosActualizados)
+        productosActualizados = [...productos, nuevoProducto]
       }
+      
+      // Actualizar productos primero
+      setProductos(productosActualizados)
+      
+      // Luego actualizar productosFiltrados aplicando los filtros actuales
+      let filtrados = productosActualizados
+      if (busquedaProductos) {
+        filtrados = filtrados.filter(
+          (p) =>
+            p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
+            p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
+        )
+      }
+      if (categoriaFiltro) {
+        filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
+      }
+      setProductosFiltrados(filtrados)
+      
+      // Forzar re-render de imágenes incrementando refreshKey
+      setRefreshKey(prev => prev + 1)
+      
+      console.log('🔄 Estado actualizado:', {
+        productosCount: productosActualizados.length,
+        filtradosCount: filtrados.length,
+        productoActualizado: nuevoProducto,
+        refreshKey: refreshKey + 1
+      })
 
       // Recargar productos desde la base de datos en segundo plano para sincronización
       // Esto asegura que si hay cambios en otros lugares, se reflejen
@@ -920,15 +943,22 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
-                    <div className="relative h-48">
+                    <div className="relative h-48 bg-gray-100">
                       <Image
-                        key={`img-${producto.nombre}-${producto.imagen}`}
+                        key={`img-${producto.nombre}-${producto.imagen}-${refreshKey}`}
                         src={producto.imagen}
                         alt={producto.nombre}
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         unoptimized={producto.imagen?.includes('supabase.co')}
+                        priority={false}
+                        onError={(e) => {
+                          console.error('❌ Error al cargar imagen:', producto.imagen, e)
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Imagen cargada:', producto.imagen)
+                        }}
                       />
                     </div>
                     <CardHeader>
