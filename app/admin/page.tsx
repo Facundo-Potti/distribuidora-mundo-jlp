@@ -435,35 +435,9 @@ export default function AdminPage() {
         refreshKey: refreshKey + 1
       })
 
-      // Recargar productos desde la base de datos en segundo plano para sincronización
-      // Esto asegura que si hay cambios en otros lugares, se reflejen
-      setTimeout(async () => {
-        try {
-          const productosResponse = await fetch('/api/products')
-          if (productosResponse.ok) {
-            const productosData = await productosResponse.json()
-            // Mantener el ID basado en el nombre para consistencia
-            const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-              // Buscar el ID existente del producto por nombre para mantener consistencia
-              const productoExistente = productos.find(prod => prod.nombre === p.nombre)
-              return {
-                id: productoExistente?.id || index + 1,
-                nombre: p.nombre,
-                categoria: p.categoria,
-                precio: p.precio,
-                stock: p.stock || 0,
-                imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
-                descripcion: p.descripcion || "",
-                unidad: p.unidad || "",
-              }
-            })
-            setProductos(productosFormateados)
-            setProductosFiltrados(productosFormateados)
-          }
-        } catch (error) {
-          console.error('Error al recargar productos:', error)
-        }
-      }, 500) // Pequeño delay para no interferir con la actualización inmediata
+      // NO recargar desde la BD inmediatamente porque sobrescribe el estado actualizado
+      // El estado local ya tiene los cambios correctos
+      // Solo recargar si el usuario recarga la página manualmente
 
       setDialogProductoAbierto(false)
       setProductoEditando(null)
@@ -951,14 +925,8 @@ export default function AdminPage() {
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        unoptimized={producto.imagen?.includes('supabase.co')}
+                        unoptimized={true}
                         priority={false}
-                        onError={(e) => {
-                          console.error('❌ Error al cargar imagen:', producto.imagen, e)
-                        }}
-                        onLoad={() => {
-                          console.log('✅ Imagen cargada:', producto.imagen)
-                        }}
                       />
                     </div>
                     <CardHeader>

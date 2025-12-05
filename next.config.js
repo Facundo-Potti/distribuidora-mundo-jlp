@@ -14,8 +14,9 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
     ],
-    // Permitir imágenes locales
-    unoptimized: false,
+    // Desactivar optimización para evitar problemas en Vercel
+    // Las imágenes se cargarán directamente sin pasar por el optimizador de Next.js
+    unoptimized: process.env.NODE_ENV === 'production',
   },
   // Optimizaciones de rendimiento
   compress: true,
