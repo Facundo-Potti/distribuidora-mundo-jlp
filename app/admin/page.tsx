@@ -325,39 +325,148 @@ export default function AdminPage() {
     setDialogProductoAbierto(true)
   }
 
-  const guardarProducto = () => {
+  const guardarProducto = async () => {
     if (!formProducto.nombre || !formProducto.categoria || !formProducto.precio || !formProducto.stock) {
       alert("Por favor completa todos los campos obligatorios")
       return
     }
 
-    const nuevoProducto: Producto = {
-      id: productoEditando ? productoEditando.id : Date.now(),
-      nombre: formProducto.nombre,
-      categoria: formProducto.categoria,
-      precio: parseFloat(formProducto.precio),
-      stock: parseInt(formProducto.stock),
-      imagen: formProducto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
-      descripcion: formProducto.descripcion,
-      unidad: formProducto.unidad,
-    }
+    try {
+      // Guardar en la base de datos
+      const url = productoEditando 
+        ? `/api/products/${productoEditando.id}`
+        : '/api/products/create'
+      
+      const method = productoEditando ? 'PUT' : 'POST'
+      
+      const bodyData: any = {
+        nombre: formProducto.nombre,
+        categoria: formProducto.categoria,
+        precio: formProducto.precio,
+        stock: formProducto.stock,
+        imagen: formProducto.imagen || null,
+        descripcion: formProducto.descripcion || null,
+        unidad: formProducto.unidad || null,
+      }
 
-    if (productoEditando) {
-      setProductos(productos.map((p) => (p.id === productoEditando.id ? nuevoProducto : p)))
-    } else {
-      setProductos([...productos, nuevoProducto])
-    }
+      // Si estamos editando y el nombre cambió, incluir el nombre original
+      if (productoEditando && productoEditando.nombre !== formProducto.nombre) {
+        bodyData.nombreOriginal = productoEditando.nombre
+      }
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyData),
+      })
 
-    localStorage.setItem("admin_productos", JSON.stringify(productoEditando ? productos.map((p) => (p.id === productoEditando.id ? nuevoProducto : p)) : [...productos, nuevoProducto]))
-    setDialogProductoAbierto(false)
-    setProductoEditando(null)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al guardar producto')
+      }
+
+      const productoGuardado = await response.json()
+
+      // Actualizar estado local con el producto guardado
+      const nuevoProducto: Producto = {
+        id: productoEditando ? productoEditando.id : Date.now(),
+        nombre: productoGuardado.nombre,
+        categoria: productoGuardado.categoria,
+        precio: productoGuardado.precio,
+        stock: productoGuardado.stock,
+        imagen: productoGuardado.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
+        descripcion: productoGuardado.descripcion || "",
+        unidad: productoGuardado.unidad || "",
+      }
+
+      if (productoEditando) {
+        setProductos(productos.map((p) => (p.id === productoEditando.id ? nuevoProducto : p)))
+      } else {
+        setProductos([...productos, nuevoProducto])
+      }
+
+      // Recargar productos desde la base de datos para asegurar sincronización
+      const productosResponse = await fetch('/api/products')
+      if (productosResponse.ok) {
+        const productosData = await productosResponse.json()
+        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => ({
+          id: index + 1,
+          nombre: p.nombre,
+          categoria: p.categoria,
+          precio: p.precio,
+          stock: p.stock || 0,
+          imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
+          descripcion: p.descripcion || "",
+          unidad: p.unidad || "",
+        }))
+        setProductos(productosFormateados)
+        setProductosFiltrados(productosFormateados)
+      }
+
+      setDialogProductoAbierto(false)
+      setProductoEditando(null)
+    } catch (error: any) {
+      console.error('Error al guardar producto:', error)
+      alert('Error al guardar producto: ' + error.message)
+    }
   }
 
-  const eliminarProducto = (id: number) => {
-    if (confirm("¿Estás seguro de que quieres eliminar este producto?")) {
+  const eliminarProducto = async (id: number) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar este producto?")) {
+      return
+    }
+
+    try {
+      // Buscar el producto por ID local para obtener el nombre
+      const producto = productos.find((p) => p.id === id)
+      if (!producto) {
+        alert('Producto no encontrado')
+        return
+      }
+
+      // Eliminar de la base de datos
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: producto.nombre,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al eliminar producto')
+      }
+
+      // Actualizar estado local
       const nuevosProductos = productos.filter((p) => p.id !== id)
       setProductos(nuevosProductos)
-      localStorage.setItem("admin_productos", JSON.stringify(nuevosProductos))
+      setProductosFiltrados(nuevosProductos)
+
+      // Recargar productos desde la base de datos
+      const productosResponse = await fetch('/api/products')
+      if (productosResponse.ok) {
+        const productosData = await productosResponse.json()
+        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => ({
+          id: index + 1,
+          nombre: p.nombre,
+          categoria: p.categoria,
+          precio: p.precio,
+          stock: p.stock || 0,
+          imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
+          descripcion: p.descripcion || "",
+          unidad: p.unidad || "",
+        }))
+        setProductos(productosFormateados)
+        setProductosFiltrados(productosFormateados)
+      }
+    } catch (error: any) {
+      console.error('Error al eliminar producto:', error)
+      alert('Error al eliminar producto: ' + error.message)
     }
   }
 
