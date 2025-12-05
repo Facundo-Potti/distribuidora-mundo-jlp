@@ -1,50 +1,56 @@
-# 🔧 Solución: Error "prepared statement already exists"
+# Solución: Error "prepared statement already exists"
 
 ## Problema
-Error `prepared statement "s0" already exists` al ejecutar el script de inicialización.
 
-## ✅ Solución: Ejecutar en Sesiones Separadas
-
-El problema es un conflicto con el connection pooling. La solución más simple es ejecutar los comandos en sesiones separadas de PowerShell.
-
-### Opción 1: Cerrar y Abrir Nueva Terminal (Recomendado)
-
-1. **Cierra la terminal actual** (o abre una nueva)
-2. **Abre una nueva terminal de PowerShell**
-3. Ejecuta el Paso 2:
-
-```powershell
-cd C:\distribuidora-mundo-jlp
-$env:DATABASE_URL="postgresql://postgres.qnviwuiqeaoixiplzqac:levis19facU!@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
-npm run db:init:prod
+Cuando usas **Connection Pooling** de Supabase (puerto `6543`), puedes encontrar este error:
+```
+ERROR: prepared statement "s0" already exists
 ```
 
-### Opción 2: Esperar y Ejecutar de Nuevo
+Esto ocurre porque el pooling comparte prepared statements entre conexiones.
 
-Si las tablas ya se crearon (viste "✅ Tablas creadas exitosamente!"), simplemente:
+## Solución
 
-1. Espera 5 segundos
-2. Ejecuta de nuevo el Paso 2 en la misma terminal:
+Para scripts administrativos (`db:test`, `db:init:prod`), usa la **conexión directa** en lugar del pooling.
+
+### Paso 1: Obtener la conexión directa
+
+1. Ve a tu proyecto en Supabase
+2. Settings → Database
+3. Busca "Connection string" → "Direct connection"
+4. Copia la URL (puerto `5432`, no `6543`)
+
+### Paso 2: Usar la conexión directa en scripts
+
+En PowerShell, antes de ejecutar los scripts, configura `DATABASE_URL` con la conexión directa:
 
 ```powershell
-$env:DATABASE_URL="postgresql://postgres.qnviwuiqeaoixiplzqac:levis19facU!@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
-npm run db:init:prod
-```
+# Conexión DIRECTA (para scripts administrativos)
+$env:DATABASE_URL="postgresql://postgres.qnviwuiqeaoixiplzqac:TU_PASSWORD@db.qnviwuiqeaoixiplzqac.supabase.co:5432/postgres?sslmode=require"
 
-### Opción 3: Verificar que las Tablas Existen
-
-Primero verifica que las tablas se crearon:
-
-```powershell
-$env:DATABASE_URL="postgresql://postgres.qnviwuiqeaoixiplzqac:levis19facU!@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require"
+# Luego ejecuta el script
 npm run db:test
+# o
+npm run db:init:prod
 ```
 
-Si funciona, las tablas están creadas. Luego ejecuta el script de inicialización.
+### Paso 3: Para producción (Vercel)
 
----
+En Vercel, **SIEMPRE usa Connection Pooling** (puerto `6543`):
+```
+postgresql://postgres.xxx:password@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+```
 
-## 🎯 Recomendación
+## Resumen
 
-**Usa la Opción 1** - Abre una nueva terminal y ejecuta el Paso 2. Es la forma más confiable de evitar conflictos.
+- **Scripts locales**: Usa conexión directa (puerto `5432`)
+- **Vercel/Producción**: Usa connection pooling (puerto `6543`)
 
+## Nota
+
+Los productos ya están importados (520 productos). Si solo necesitas verificar, puedes usar Prisma Studio:
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres.xxx:password@db.xxx.supabase.co:5432/postgres?sslmode=require"
+npx prisma studio
+```

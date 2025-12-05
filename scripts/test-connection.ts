@@ -10,12 +10,17 @@ async function testConnection() {
     await prisma.$connect()
     console.log('✅ Conexión exitosa!\n')
     
-    // Contar usuarios
-    const userCount = await prisma.user.count()
+    // Pequeña pausa para evitar conflictos con prepared statements
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // Contar usuarios usando findMany para evitar prepared statements
+    const users = await prisma.user.findMany({ select: { id: true } })
+    const userCount = users.length
     console.log(`📊 Usuarios en la base de datos: ${userCount}`)
     
-    // Contar productos
-    const productCount = await prisma.product.count()
+    // Contar productos usando findMany
+    const products = await prisma.product.findMany({ select: { id: true } })
+    const productCount = products.length
     console.log(`📦 Productos en la base de datos: ${productCount}\n`)
     
     if (userCount === 0) {

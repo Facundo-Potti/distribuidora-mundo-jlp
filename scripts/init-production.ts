@@ -29,10 +29,11 @@ async function initProduction() {
     console.log('✅ Conectado a la base de datos\n')
 
     // Pequeña pausa para evitar conflictos con prepared statements
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
-    // Verificar si ya hay usuarios
-    const existingUsers = await prisma.user.count()
+    // Verificar si ya hay usuarios usando findMany para evitar prepared statements
+    const users = await prisma.user.findMany({ select: { id: true }, take: 1 })
+    const existingUsers = users.length
     
     if (existingUsers > 0) {
       console.log('⚠️  Ya existen usuarios en la base de datos.')
