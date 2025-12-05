@@ -130,25 +130,10 @@ export default function AdminPage() {
         if (response.ok) {
           const productosData = await response.json()
           console.log('📥 Productos cargados desde BD:', productosData.length)
+          
           // Convertir el formato de la base de datos al formato esperado por el componente
           const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-            // Log detallado ANTES de procesar la imagen
-            if (p.nombre && p.nombre.includes('ACEITUNA NEGRA N 00 BALDE')) {
-              console.log('🔍 DEBUG - Producto antes de procesar imagen:', {
-                nombre: p.nombre,
-                imagenRaw: p.imagen,
-                tipoImagen: typeof p.imagen,
-                esNull: p.imagen === null,
-                esUndefined: p.imagen === undefined,
-                esString: typeof p.imagen === 'string',
-                tieneTrim: typeof p.imagen === 'string' ? p.imagen.trim() : 'N/A',
-                longitud: typeof p.imagen === 'string' ? p.imagen.length : 'N/A',
-                esSupabase: typeof p.imagen === 'string' && p.imagen.includes('supabase.co')
-              })
-            }
-            
-            // CRÍTICO: Extraer y preservar la imagen de la BD
-            // Si p.imagen existe y es una string válida, usarla
+            // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
             let imagenDeBD: string | null = null
             if (p.imagen !== null && 
                 p.imagen !== undefined && 
@@ -157,120 +142,31 @@ export default function AdminPage() {
               imagenDeBD = p.imagen.trim()
             }
             
-            // Log detallado para productos específicos ANTES de procesar
-            if (p.nombre && (p.nombre.includes('ACEITUNA NEGRA N 00 BALDE') || p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG'))) {
-              console.log('🔍 ANTES de mapear - Producto desde BD:', {
-                nombre: p.nombre,
-                imagenRaw: p.imagen,
-                tipoImagen: typeof p.imagen,
-                esNull: p.imagen === null,
-                esUndefined: p.imagen === undefined,
-                esString: typeof p.imagen === 'string',
-                tieneContenido: p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== '',
-                esSupabase: p.imagen && typeof p.imagen === 'string' && p.imagen.includes('supabase.co'),
-                imagenDeBD: imagenDeBD
-              })
-            }
-            
-            // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
-            // Solo usar Unsplash si NO hay imagen en la BD
+            // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
             const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
-            // Log detallado para verificar que la imagen se está extrayendo correctamente
-            if (p.nombre && (p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG') || p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))) {
-              console.log('🔍 EXTRAYENDO IMAGEN DE BD:', {
-                nombre: p.nombre,
-                p_imagen: p.imagen,
-                p_imagen_tipo: typeof p.imagen,
-                p_imagen_esNull: p.imagen === null,
-                p_imagen_esUndefined: p.imagen === undefined,
-                imagenDeBD: imagenDeBD,
-                imagenParaMostrar: imagenParaMostrar
-              })
-            }
-            
-            // Log detallado para productos con imágenes de Supabase
-            if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
-              console.log(`✅ Producto con imagen Supabase: ${p.nombre}`, {
-                imagenBD: imagenDeBD,
-                imagenParaMostrar: imagenParaMostrar,
-                index: index + 1
-              })
-            }
-            
-            // Log para debug de productos específicos
-            if (p.nombre && (p.nombre.includes('ACEITUNA NEGRA N 00 BALDE') || p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG'))) {
-              console.log('🔍 Mapeando producto al recargar:', {
-                nombre: p.nombre,
-                imagenRaw: p.imagen,
-                imagenDeBD: imagenDeBD,
-                imagenParaMostrar: imagenParaMostrar,
-                esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co'),
-                esUnsplash: imagenParaMostrar.includes('unsplash.com'),
-                imagenOriginalEnObjeto: imagenDeBD // Para verificar que se guarda correctamente
-              })
-            }
-            
-            const productoMapeado = {
-              id: index + 1, // Usar índice como ID numérico para compatibilidad
+            return {
+              id: index + 1,
               nombre: p.nombre,
               categoria: p.categoria,
               precio: p.precio,
               stock: p.stock || 0,
-              // CRÍTICO: imagen debe tener la URL de Supabase si existe en la BD
+              // imagen: URL para mostrar (puede ser de Supabase o por defecto)
               imagen: imagenParaMostrar,
-              // CRÍTICO: Guardar la imagen ORIGINAL de la BD (puede ser null si no hay imagen)
+              // imagenOriginal: URL real de la BD (null si no hay imagen guardada)
               imagenOriginal: imagenDeBD,
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
-            
-            // Log para verificar que imagenOriginal se guardó correctamente
-            if (p.nombre && (p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG') || p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))) {
-              console.log('✅ Producto mapeado final:', {
-                nombre: productoMapeado.nombre,
-                imagen: productoMapeado.imagen,
-                imagenOriginal: productoMapeado.imagenOriginal,
-                imagenOriginalEsNull: productoMapeado.imagenOriginal === null,
-                imagenOriginalEsString: typeof productoMapeado.imagenOriginal === 'string',
-                imagenOriginalIncluyeSupabase: productoMapeado.imagenOriginal && productoMapeado.imagenOriginal.includes('supabase.co')
-              })
-            }
-            
-            // Log para verificar que imagenOriginal se guarda correctamente
-            if (p.nombre && (p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG') || p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))) {
-              console.log('✅ PRODUCTO MAPEADO:', {
-                nombre: productoMapeado.nombre,
-                imagen: productoMapeado.imagen,
-                imagenOriginal: productoMapeado.imagenOriginal,
-                tieneImagenOriginal: !!productoMapeado.imagenOriginal,
-                imagenOriginalEsSupabase: productoMapeado.imagenOriginal && productoMapeado.imagenOriginal.includes('supabase.co')
-              })
-            }
-            
-            return productoMapeado
           })
           
-          // Verificar que las imágenes se cargaron correctamente
-          const productosConImagen = productosFormateados.filter(p => p.imagen.includes('supabase.co'))
-          console.log(`🖼️ Total productos con imagen Supabase cargados: ${productosConImagen.length}`)
-          // Verificar productos con imágenes de Supabase
-          const productosConImagenSupabase = productosFormateados.filter(p => 
-            p.imagen && p.imagen.includes('supabase.co')
-          )
           console.log(`✅ Productos cargados: ${productosFormateados.length}`)
-          console.log(`🖼️ Productos con imagen Supabase: ${productosConImagenSupabase.length}`)
-          
-          if (productosConImagenSupabase.length > 0) {
-            console.log('📸 Primeros productos con imagen Supabase:')
-            productosConImagenSupabase.slice(0, 3).forEach(p => {
-              console.log(`   - ${p.nombre}: ${p.imagen}`)
-            })
-          }
+          const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
+          console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
           
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
-    } else {
+        } else {
           console.error('Error al cargar productos:', response.statusText)
         }
       } catch (error) {
@@ -433,61 +329,19 @@ export default function AdminPage() {
   // Funciones de productos
   const abrirDialogProducto = (producto?: Producto) => {
     if (producto) {
-      // CRÍTICO: Debug detallado del producto antes de procesar
-      console.log('🔍 Producto recibido en abrirDialogProducto:', {
-        nombre: producto.nombre,
-        id: producto.id,
-        imagen: producto.imagen,
-        imagenOriginal: producto.imagenOriginal,
-        tipoImagen: typeof producto.imagen,
-        tipoImagenOriginal: typeof producto.imagenOriginal,
-        imagenEsNull: producto.imagen === null,
-        imagenOriginalEsNull: producto.imagenOriginal === null,
-        imagenEsUndefined: producto.imagen === undefined,
-        imagenOriginalEsUndefined: producto.imagenOriginal === undefined,
-        imagenEsString: typeof producto.imagen === 'string',
-        imagenOriginalEsString: typeof producto.imagenOriginal === 'string',
-        imagenIncluyeSupabase: producto.imagen && typeof producto.imagen === 'string' && producto.imagen.includes('supabase.co'),
-        imagenOriginalIncluyeSupabase: producto.imagenOriginal && typeof producto.imagenOriginal === 'string' && producto.imagenOriginal.includes('supabase.co')
-      })
+      // Usar imagenOriginal si existe (imagen real de la BD), sino string vacío
+      const imagenParaFormulario = producto.imagenOriginal && 
+        typeof producto.imagenOriginal === 'string' && 
+        producto.imagenOriginal.trim() !== '' 
+        ? producto.imagenOriginal.trim() 
+        : ''
       
-      // Usar imagenOriginal si existe (imagen real de la BD), de lo contrario usar imagen
-      const imagenParaEditar = producto.imagenOriginal || producto.imagen
-      
-      console.log('📝 Abriendo diálogo para editar producto:', {
-        nombre: producto.nombre,
-        imagen: producto.imagen,
-        imagenOriginal: producto.imagenOriginal,
-        imagenParaEditar: imagenParaEditar,
-        tipoImagen: typeof imagenParaEditar,
-        esSupabase: imagenParaEditar && typeof imagenParaEditar === 'string' && imagenParaEditar.includes('supabase.co'),
-        esUnsplash: imagenParaEditar && typeof imagenParaEditar === 'string' && imagenParaEditar.includes('unsplash.com')
-      })
       setProductoEditando(producto)
-      
-      // CRÍTICO: Asegurarse de que la imagen se pase correctamente al formulario
-      // Si imagenParaEditar es de Supabase, usarla; si es null o Unsplash, usar string vacío
-      let imagenParaFormulario = ''
-      if (imagenParaEditar && 
-          typeof imagenParaEditar === 'string' && 
-          imagenParaEditar.trim() !== '' && 
-          !imagenParaEditar.includes('unsplash.com')) {
-        imagenParaFormulario = imagenParaEditar.trim()
-      }
-      
-      console.log('✅ FormProducto actualizado con imagen:', {
-        imagenParaEditar: imagenParaEditar,
-        imagenParaFormulario: imagenParaFormulario,
-        esSupabase: imagenParaFormulario.includes('supabase.co'),
-        longitud: imagenParaFormulario.length
-      })
-      
       setFormProducto({
         nombre: producto.nombre,
         categoria: producto.categoria,
         precio: producto.precio.toString(),
         stock: producto.stock.toString(),
-        // CRÍTICO: Pasar la imagen de Supabase si existe, sino string vacío
         imagen: imagenParaFormulario,
         descripcion: producto.descripcion || "",
         unidad: producto.unidad || "",
@@ -521,22 +375,16 @@ export default function AdminPage() {
       
       const method = productoEditando ? 'PUT' : 'POST'
       
+      // Preparar datos: imagen debe ser null si está vacía, sino la URL completa
       const bodyData: any = {
-      nombre: formProducto.nombre,
-      categoria: formProducto.categoria,
+        nombre: formProducto.nombre,
+        categoria: formProducto.categoria,
         precio: formProducto.precio,
         stock: formProducto.stock,
-        imagen: formProducto.imagen && formProducto.imagen.trim() !== '' ? formProducto.imagen : null,
-        descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion : null,
-        unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad : null,
+        imagen: formProducto.imagen && formProducto.imagen.trim() !== '' ? formProducto.imagen.trim() : null,
+        descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion.trim() : null,
+        unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad.trim() : null,
       }
-
-      console.log('💾 Guardando producto:', {
-        nombre: bodyData.nombre,
-        imagen: bodyData.imagen,
-        formProductoImagen: formProducto.imagen,
-        bodyDataCompleto: bodyData
-      })
 
       // Si estamos editando y el nombre cambió, incluir el nombre original
       if (productoEditando && productoEditando.nombre !== formProducto.nombre) {
@@ -558,32 +406,15 @@ export default function AdminPage() {
 
       const productoGuardado = await response.json()
       
-      console.log('✅ Producto guardado en BD:', {
-        nombre: productoGuardado.nombre,
-        imagen: productoGuardado.imagen,
-        imagenEsNull: productoGuardado.imagen === null,
-        imagenEsString: typeof productoGuardado.imagen === 'string',
-        imagenTieneContenido: productoGuardado.imagen && productoGuardado.imagen.trim() !== '',
-        productoCompleto: productoGuardado
-      })
-
-      // Actualizar estado local con el producto guardado
-      // CRÍTICO: Extraer la imagen de la BD
-      const imagenDeBD = productoGuardado.imagen && typeof productoGuardado.imagen === 'string' && productoGuardado.imagen.trim() !== ''
+      // Extraer la imagen de la BD
+      const imagenDeBD = productoGuardado.imagen && 
+        typeof productoGuardado.imagen === 'string' && 
+        productoGuardado.imagen.trim() !== ''
         ? productoGuardado.imagen.trim()
         : null
       
-      // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
-      // Solo usar Unsplash si realmente NO hay imagen guardada
+      // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
       const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-      
-      console.log('🖼️ Imagen del producto guardado:', {
-        imagenBD: productoGuardado.imagen,
-        imagenDeBD: imagenDeBD,
-        imagenParaMostrar: imagenParaMostrar,
-        esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co'),
-        esNull: imagenDeBD === null
-      })
       
       const nuevoProducto: Producto = {
         id: productoEditando ? productoEditando.id : Date.now(),
@@ -591,32 +422,25 @@ export default function AdminPage() {
         categoria: productoGuardado.categoria,
         precio: productoGuardado.precio,
         stock: productoGuardado.stock,
-        // CRÍTICO: imagen debe tener la URL de Supabase si existe, NO Unsplash
         imagen: imagenParaMostrar,
-        // CRÍTICO: Guardar la imagen real de la BD (puede ser null si no hay imagen)
         imagenOriginal: imagenDeBD,
         descripcion: productoGuardado.descripcion || "",
         unidad: productoGuardado.unidad || "",
       }
-      
-      console.log('📦 Producto formateado para UI:', nuevoProducto)
 
-      // Actualizar estado local inmediatamente para reflejar cambios en la UI
+      // Actualizar estado local
       let productosActualizados: Producto[]
-
-    if (productoEditando) {
+      if (productoEditando) {
         productosActualizados = productos.map((p) => 
           p.id === productoEditando.id ? nuevoProducto : p
         )
-    } else {
+      } else {
         productosActualizados = [...productos, nuevoProducto]
       }
       
-      // Actualizar productos con la imagen correcta de la BD
-      // NO recargar desde la BD porque ya tenemos los datos correctos del productoGuardado
       setProductos(productosActualizados)
       
-      // Luego actualizar productosFiltrados aplicando los filtros actuales
+      // Actualizar productos filtrados
       let filtrados = productosActualizados
       if (busquedaProductos) {
         filtrados = filtrados.filter(
@@ -630,22 +454,11 @@ export default function AdminPage() {
       }
       setProductosFiltrados(filtrados)
       
-      // Forzar re-render de imágenes incrementando refreshKey
+      // Forzar re-render de imágenes
       setRefreshKey(prev => prev + 1)
-      
-      console.log('🔄 Estado actualizado:', {
-        productosCount: productosActualizados.length,
-        filtradosCount: filtrados.length,
-        productoActualizado: nuevoProducto,
-        refreshKey: refreshKey + 1
-      })
 
-      // NO recargar desde la BD inmediatamente porque sobrescribe el estado actualizado
-      // El estado local ya tiene los cambios correctos
-      // Solo recargar si el usuario recarga la página manualmente
-
-    setDialogProductoAbierto(false)
-    setProductoEditando(null)
+      setDialogProductoAbierto(false)
+      setProductoEditando(null)
     } catch (error: any) {
       console.error('Error al guardar producto:', error)
       alert('Error al guardar producto: ' + error.message)
@@ -681,25 +494,30 @@ export default function AdminPage() {
         throw new Error(error.error || 'Error al eliminar producto')
       }
 
-      // Actualizar estado local
-      const nuevosProductos = productos.filter((p) => p.id !== id)
-      setProductos(nuevosProductos)
-      setProductosFiltrados(nuevosProductos)
-
       // Recargar productos desde la base de datos
-      const productosResponse = await fetch('/api/products')
+      const productosResponse = await fetch(`/api/products?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
-        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => ({
-          id: index + 1,
-          nombre: p.nombre,
-          categoria: p.categoria,
-          precio: p.precio,
-          stock: p.stock || 0,
-          imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
-          descripcion: p.descripcion || "",
-          unidad: p.unidad || "",
-        }))
+        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
+            ? p.imagen.trim()
+            : null
+          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+          
+          return {
+            id: index + 1,
+            nombre: p.nombre,
+            categoria: p.categoria,
+            precio: p.precio,
+            stock: p.stock || 0,
+            imagen: imagenParaMostrar,
+            imagenOriginal: imagenDeBD,
+            descripcion: p.descripcion || "",
+            unidad: p.unidad || "",
+          }
+        })
         setProductos(productosFormateados)
         setProductosFiltrados(productosFormateados)
       }
@@ -1123,75 +941,20 @@ export default function AdminPage() {
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
-                      {(() => {
-                        // CRÍTICO: Priorizar imagenOriginal (imagen de Supabase de la BD)
-                        // Si imagenOriginal existe, usarla (es la imagen real de la BD)
-                        // Si no, usar imagen (que puede ser Supabase o Unsplash)
-                        let imagenParaMostrar = producto.imagenOriginal || producto.imagen
-                        
-                        // Si imagenOriginal es null pero imagen es de Supabase, usar imagen
-                        if (!producto.imagenOriginal && producto.imagen && producto.imagen.includes('supabase.co')) {
-                          imagenParaMostrar = producto.imagen
-                        }
-                        
-                        const esImagenSupabase = imagenParaMostrar && imagenParaMostrar.includes('supabase.co')
-                        
-                        // Log para debug
-                        if (producto.nombre && producto.nombre.includes('ACEITUNA NEGRA N 00 BALDE')) {
-                          console.log('🖼️ Renderizando imagen:', {
-                            nombre: producto.nombre,
-                            imagenOriginal: producto.imagenOriginal,
-                            imagen: producto.imagen,
-                            imagenParaMostrar: imagenParaMostrar,
-                            esSupabase: esImagenSupabase,
-                            key: `img-${producto.nombre}-${imagenParaMostrar}`
-                          })
-                        }
-                        
-                        // CRÍTICO: Usar un key estable que incluya la URL de la imagen para forzar re-render cuando cambie
-                        const imgKey = `img-${producto.id}-${producto.nombre}-${imagenParaMostrar}`
-                        
-                        // Agregar timestamp a la URL de Supabase para evitar caché del navegador
-                        let srcConCacheBust = imagenParaMostrar
-                        if (esImagenSupabase && imagenParaMostrar.includes('supabase.co')) {
-                          // Solo agregar timestamp si no tiene parámetros de query
-                          srcConCacheBust = imagenParaMostrar.includes('?') 
-                            ? `${imagenParaMostrar}&t=${Date.now()}`
-                            : `${imagenParaMostrar}?t=${Date.now()}`
-                        }
-                        
-                        return (
-                          <img
-                            key={imgKey}
-                            src={srcConCacheBust}
-                            alt={producto.nombre}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            loading="lazy"
-                            style={{ display: 'block', width: '100%', height: '100%' }}
-                            onError={(e) => {
-                              console.error('❌ Error al cargar imagen:', {
-                                nombre: producto.nombre,
-                                url: srcConCacheBust,
-                                urlOriginal: imagenParaMostrar,
-                                error: e
-                              })
-                              // Solo usar imagen por defecto si NO es una imagen de Supabase
-                              if (!esImagenSupabase) {
-                                e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-                              }
-                            }}
-                            onLoad={() => {
-                              if (esImagenSupabase) {
-                                console.log('✅ Imagen cargada exitosamente desde Supabase:', {
-                                  nombre: producto.nombre,
-                                  url: srcConCacheBust,
-                                  urlOriginal: imagenParaMostrar
-                                })
-                              }
-                            }}
-                          />
-                        )
-                      })()}
+                      <img
+                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}`}
+                        src={producto.imagen}
+                        alt={producto.nombre}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
+                        style={{ display: 'block', width: '100%', height: '100%' }}
+                        onError={(e) => {
+                          // Si falla la carga, usar imagen por defecto solo si no es de Supabase
+                          if (!producto.imagenOriginal || !producto.imagenOriginal.includes('supabase.co')) {
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+                          }
+                        }}
+                      />
                     </div>
                     <CardHeader>
                       <div className="flex items-start justify-between">

@@ -19,67 +19,22 @@ export function ImageUpload({
   productId,
   productName = 'producto'
 }: ImageUploadProps) {
-  // Inicializar preview correctamente: solo usar currentImage si es una URL válida
-  const getInitialPreview = () => {
-    if (currentImage && 
-        typeof currentImage === 'string' && 
-        currentImage.trim() !== '' && 
-        !currentImage.includes('unsplash.com')) {
-      return currentImage.trim()
-    }
-    return null
-  }
-  
   const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<string | null>(getInitialPreview())
+  const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Log inicial cuando el componente se monta
-  useEffect(() => {
-    console.log('🖼️ ImageUpload montado:', {
-      productId,
-      productName,
-      currentImage,
-      preview,
-      tipoCurrentImage: typeof currentImage,
-      esSupabase: currentImage && typeof currentImage === 'string' && currentImage.includes('supabase.co'),
-      esUnsplash: currentImage && typeof currentImage === 'string' && currentImage.includes('unsplash.com'),
-      previewInicial: getInitialPreview()
-    })
-  }, [])
-
-
   // Actualizar preview cuando currentImage cambie
-  // IMPORTANTE: Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash
+  // Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash
   useEffect(() => {
-    console.log('🔄 ImageUpload - currentImage cambió:', {
-      currentImage,
-      tipo: typeof currentImage,
-      esString: typeof currentImage === 'string',
-      tieneContenido: currentImage && typeof currentImage === 'string' && currentImage.trim() !== '',
-      esSupabase: currentImage && typeof currentImage === 'string' && currentImage.includes('supabase.co'),
-      esUnsplash: currentImage && typeof currentImage === 'string' && currentImage.includes('unsplash.com')
-    })
-    
-    // Solo establecer preview si:
-    // 1. Es una string válida
-    // 2. No es una imagen por defecto de Unsplash
-    // 3. Tiene contenido
     if (
       currentImage && 
       typeof currentImage === 'string' && 
       currentImage.trim() !== '' &&
       !currentImage.includes('unsplash.com')
     ) {
-      console.log('✅ ImageUpload - Estableciendo preview (imagen válida):', currentImage)
       setPreview(currentImage.trim())
     } else {
-      console.log('❌ ImageUpload - No hay imagen válida, limpiando preview', {
-        razon: !currentImage ? 'currentImage es falsy' : 
-               currentImage.includes('unsplash.com') ? 'es imagen por defecto de Unsplash' :
-               'string vacío'
-      })
       setPreview(null)
     }
   }, [currentImage])
@@ -152,13 +107,9 @@ export function ImageUpload({
 
       console.log('✅ Imagen subida exitosamente:', data.url)
       setPreview(data.url)
+      // Llamar al callback para actualizar el formulario con la URL de la imagen
       onImageUploaded(data.url)
-      
-      // Mostrar mensaje de éxito temporal
       setError(null)
-      setTimeout(() => {
-        // El mensaje de éxito desaparece automáticamente
-      }, 2000)
     } catch (err: any) {
       console.error('Error al subir imagen:', err)
       const errorMessage = err.message || 'Error al subir la imagen. Verifica que Supabase Storage esté configurado.'
