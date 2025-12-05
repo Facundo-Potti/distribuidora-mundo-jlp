@@ -40,3 +40,4 @@ if (supabaseUrl && supabaseKey) {
   console.log('   Consulta CONFIGURAR_SUPABASE_STORAGE.md para más información\n')
 }
 
+

@@ -84,3 +84,4 @@ Si ves errores en los logs:
 3. 🔧 Inicializa la base de datos
 4. 🧪 Prueba el login
 
+

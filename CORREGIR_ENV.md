@@ -41,3 +41,4 @@ DATABASE_URL="postgresql://postgres.qnviwuiqeaoixiplzqac:levis19facU!@aws-1-us-e
    npm run db:init:prod
    ```
 
+

@@ -48,3 +48,4 @@ Esto creará los usuarios y productos iniciales.
 
 Si el comando se queda colgado, espera unos segundos. La creación de tablas puede tardar 30-60 segundos.
 
+

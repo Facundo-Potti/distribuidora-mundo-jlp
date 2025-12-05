@@ -120,3 +120,4 @@ Si necesitas una solución rápida, puedo:
 2. Configurar el build para ejecutar migraciones automáticamente
 3. Crear un endpoint para ejecutar el seed de forma segura
 
+

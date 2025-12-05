@@ -183,3 +183,4 @@ postgresql://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/p
 - [ ] Variable actualizada en Vercel
 - [ ] Nuevo deploy realizado
 
+

@@ -114,3 +114,4 @@ Cuando subes una imagen, se actualiza automáticamente el campo `imagen` del pro
 - En producción, verifica la configuración del servicio en la nube
 
 
+

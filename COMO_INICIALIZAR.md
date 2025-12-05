@@ -79,3 +79,4 @@ https://distribuidora-mundo-jlp.vercel.app/auth/login
 - **Para scripts locales**: Usa la conexión de pooling (puerto 6543) que ya funciona
 - **Para Vercel**: Ya está configurada automáticamente en las variables de entorno
 
+

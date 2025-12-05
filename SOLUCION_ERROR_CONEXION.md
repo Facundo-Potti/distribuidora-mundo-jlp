@@ -147,3 +147,4 @@ Antes de hacer deploy, verifica:
 3. Verifica los logs del deploy
 4. Si el build es exitoso, inicializa la base de datos (ver `INICIALIZAR_DESDE_LOCAL.md`)
 
+

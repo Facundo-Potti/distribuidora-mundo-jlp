@@ -163,3 +163,4 @@ Si tienes problemas:
 2. Verifica las variables de entorno en Vercel
 3. Prueba la conexión a la base de datos desde tu máquina local
 
+

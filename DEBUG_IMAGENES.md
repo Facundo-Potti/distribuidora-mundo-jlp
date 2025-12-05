@@ -110,3 +110,4 @@ Luego busca el producto y verifica que el campo `imagen` tenga la URL de Supabas
 
 Si alguno de estos pasos falta, ese es el punto donde está el problema.
 
+

@@ -88,3 +88,4 @@ npx tsx scripts/fix-users.ts
 3. Verifica que `DATABASE_URL` sea correcta en Vercel
 4. Prueba con el script `fix-users.ts` para recrear los usuarios
 
+

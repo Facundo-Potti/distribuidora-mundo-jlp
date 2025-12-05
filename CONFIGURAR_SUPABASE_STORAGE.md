@@ -113,3 +113,4 @@ npm run dev
 - ✅ El bucket debe ser público para que las imágenes sean accesibles sin autenticación
 - ✅ Las imágenes se almacenan permanentemente en Supabase Storage
 
+

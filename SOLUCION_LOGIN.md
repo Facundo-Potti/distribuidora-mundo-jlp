@@ -81,3 +81,4 @@ npm run db:seed
 - Los cambios en la base de datos requieren reiniciar el servidor
 - Las contraseñas están hasheadas con bcrypt, no se pueden leer directamente
 
+

@@ -200,7 +200,7 @@ export default function AdminPage() {
           
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
-        } else {
+    } else {
           console.error('Error al cargar productos:', response.statusText)
         }
       } catch (error) {
@@ -410,8 +410,8 @@ export default function AdminPage() {
       const method = productoEditando ? 'PUT' : 'POST'
       
       const bodyData: any = {
-        nombre: formProducto.nombre,
-        categoria: formProducto.categoria,
+      nombre: formProducto.nombre,
+      categoria: formProducto.categoria,
         precio: formProducto.precio,
         stock: formProducto.stock,
         imagen: formProducto.imagen && formProducto.imagen.trim() !== '' ? formProducto.imagen : null,
@@ -481,12 +481,12 @@ export default function AdminPage() {
 
       // Actualizar estado local inmediatamente para reflejar cambios en la UI
       let productosActualizados: Producto[]
-      
-      if (productoEditando) {
+
+    if (productoEditando) {
         productosActualizados = productos.map((p) => 
           p.id === productoEditando.id ? nuevoProducto : p
         )
-      } else {
+    } else {
         productosActualizados = [...productos, nuevoProducto]
       }
       
@@ -521,8 +521,8 @@ export default function AdminPage() {
       // El estado local ya tiene los cambios correctos
       // Solo recargar si el usuario recarga la página manualmente
 
-      setDialogProductoAbierto(false)
-      setProductoEditando(null)
+    setDialogProductoAbierto(false)
+    setProductoEditando(null)
     } catch (error: any) {
       console.error('Error al guardar producto:', error)
       alert('Error al guardar producto: ' + error.message)

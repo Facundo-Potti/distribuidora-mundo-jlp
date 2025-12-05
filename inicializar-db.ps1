@@ -25,3 +25,4 @@ try {
     Write-Host "   3. Que las variables de entorno estén configuradas" -ForegroundColor Gray
 }
 
+

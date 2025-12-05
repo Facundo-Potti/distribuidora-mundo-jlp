@@ -72,3 +72,4 @@ Deberías ver:
 2. Asegúrate de que la contraseña esté entre comillas si tiene caracteres especiales
 3. Prueba con la conexión de pooling primero (es más confiable)
 
+
