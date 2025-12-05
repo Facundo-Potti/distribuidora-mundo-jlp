@@ -349,7 +349,12 @@ export default function AdminPage() {
         unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad : null,
       }
 
-      console.log('Guardando producto con imagen:', bodyData.imagen)
+      console.log('💾 Guardando producto:', {
+        nombre: bodyData.nombre,
+        imagen: bodyData.imagen,
+        formProductoImagen: formProducto.imagen,
+        bodyDataCompleto: bodyData
+      })
 
       // Si estamos editando y el nombre cambió, incluir el nombre original
       if (productoEditando && productoEditando.nombre !== formProducto.nombre) {
@@ -370,6 +375,12 @@ export default function AdminPage() {
       }
 
       const productoGuardado = await response.json()
+      
+      console.log('✅ Producto guardado en BD:', {
+        nombre: productoGuardado.nombre,
+        imagen: productoGuardado.imagen,
+        productoCompleto: productoGuardado
+      })
 
       // Actualizar estado local con el producto guardado
       const nuevoProducto: Producto = {
@@ -382,6 +393,8 @@ export default function AdminPage() {
         descripcion: productoGuardado.descripcion || "",
         unidad: productoGuardado.unidad || "",
       }
+      
+      console.log('📦 Producto formateado para UI:', nuevoProducto)
 
       if (productoEditando) {
         setProductos(productos.map((p) => (p.id === productoEditando.id ? nuevoProducto : p)))
@@ -1168,7 +1181,10 @@ export default function AdminPage() {
               <Label>Imagen del Producto</Label>
               <ImageUpload
                 currentImage={formProducto.imagen}
-                onImageUploaded={(imageUrl) => setFormProducto({ ...formProducto, imagen: imageUrl })}
+                onImageUploaded={(imageUrl) => {
+                  console.log('🖼️ Imagen subida, actualizando formulario:', imageUrl)
+                  setFormProducto({ ...formProducto, imagen: imageUrl })
+                }}
                 productId={productoEditando?.id.toString()}
                 productName={formProducto.nombre || 'producto'}
               />

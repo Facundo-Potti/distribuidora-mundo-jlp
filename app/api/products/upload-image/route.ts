@@ -17,8 +17,14 @@ export async function POST(request: NextRequest) {
 
     // Verificar que Supabase esté configurado
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('❌ Supabase no configurado:', {
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      })
       return NextResponse.json(
-        { error: 'Supabase no está configurado. Por favor, configura las variables de entorno.' },
+        { 
+          error: 'Supabase Storage no está configurado. Por favor, configura las variables de entorno NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY. Consulta CONFIGURAR_SUPABASE_STORAGE.md para más información.' 
+        },
         { status: 500 }
       )
     }
@@ -64,20 +70,38 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
 
     // Subir a Supabase Storage
+    console.log('Intentando subir a Supabase Storage:', {
+      bucket: 'productos',
+      fileName,
+      fileSize: buffer.length,
+      contentType: file.type,
+    })
+
     const { data, error: uploadError } = await supabaseAdmin.storage
       .from('productos')
       .upload(fileName, buffer, {
         contentType: file.type,
-        upsert: false, // No sobrescribir si existe
+        upsert: true, // Permitir sobrescribir si existe (para cambiar imagen)
       })
 
     if (uploadError) {
-      console.error('Error al subir a Supabase:', uploadError)
+      console.error('❌ Error al subir a Supabase:', uploadError)
+      
+      // Mensajes de error más específicos
+      let errorMessage = 'Error al subir la imagen: ' + uploadError.message
+      if (uploadError.message.includes('Bucket not found')) {
+        errorMessage = 'El bucket "productos" no existe en Supabase Storage. Por favor, créalo siguiendo las instrucciones en CONFIGURAR_SUPABASE_STORAGE.md'
+      } else if (uploadError.message.includes('new row violates row-level security')) {
+        errorMessage = 'Error de permisos en Supabase Storage. Verifica las políticas RLS del bucket "productos".'
+      }
+      
       return NextResponse.json(
-        { error: 'Error al subir la imagen: ' + uploadError.message },
+        { error: errorMessage },
         { status: 500 }
       )
     }
+
+    console.log('✅ Imagen subida exitosamente:', data)
 
     // Obtener URL pública de la imagen
     const { data: urlData } = supabaseAdmin.storage

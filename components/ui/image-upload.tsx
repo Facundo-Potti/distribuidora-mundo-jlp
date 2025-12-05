@@ -35,23 +35,35 @@ export function ImageUpload({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      // Resetear el input si no hay archivo seleccionado
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
 
     // Validar tipo
     if (!file.type.startsWith('image/')) {
       setError('Por favor selecciona un archivo de imagen')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
     // Validar tamaño (5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('La imagen es demasiado grande. Máximo 5MB')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
     setError(null)
 
-    // Crear preview
+    // Crear preview inmediatamente
     const reader = new FileReader()
     reader.onloadend = () => {
       setPreview(reader.result as string)
@@ -73,6 +85,8 @@ export function ImageUpload({
         formData.append('productId', productId)
       }
 
+      console.log('Subiendo imagen...', { fileName: file.name, size: file.size, type: file.type })
+
       const response = await fetch('/api/products/upload-image', {
         method: 'POST',
         body: formData,
@@ -81,14 +95,24 @@ export function ImageUpload({
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('Error en respuesta:', data)
         throw new Error(data.error || 'Error al subir la imagen')
       }
 
+      console.log('✅ Imagen subida exitosamente:', data.url)
       setPreview(data.url)
       onImageUploaded(data.url)
+      
+      // Mostrar mensaje de éxito temporal
+      setError(null)
+      setTimeout(() => {
+        // El mensaje de éxito desaparece automáticamente
+      }, 2000)
     } catch (err: any) {
-      setError(err.message || 'Error al subir la imagen')
-      console.error('Error:', err)
+      console.error('Error al subir imagen:', err)
+      const errorMessage = err.message || 'Error al subir la imagen. Verifica que Supabase Storage esté configurado.'
+      setError(errorMessage)
+      // No resetear el preview si hay error, para que el usuario pueda intentar de nuevo
     } finally {
       setUploading(false)
     }
@@ -139,17 +163,17 @@ export function ImageUpload({
             onChange={handleFileSelect}
             disabled={uploading}
             className="hidden"
-            id="image-upload"
+            id={`image-upload-${productId || 'new'}`}
           />
-          <label htmlFor="image-upload">
+          <label htmlFor={`image-upload-${productId || 'new'}`}>
             <Button
               type="button"
               variant="outline"
               disabled={uploading}
-              className="w-full"
+              className="w-full cursor-pointer"
               asChild
             >
-              <span>
+              <span className="flex items-center justify-center">
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -167,6 +191,21 @@ export function ImageUpload({
           <p className="text-xs text-gray-500 mt-2">
             JPG, PNG o WEBP. Máximo 5MB
           </p>
+          {preview && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault()
+                handleRemove()
+              }}
+              className="w-full mt-2 text-red-600 hover:text-red-700"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Eliminar imagen
+            </Button>
+          )}
         </div>
       </div>
 
