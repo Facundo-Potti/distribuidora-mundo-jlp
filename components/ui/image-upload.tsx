@@ -19,8 +19,16 @@ export function ImageUpload({
   productId,
   productName = 'producto'
 }: ImageUploadProps) {
+  // Inicializar preview correctamente: solo usar currentImage si es una URL válida
+  const getInitialPreview = () => {
+    if (currentImage && typeof currentImage === 'string' && currentImage.trim() !== '' && !currentImage.includes('unsplash.com')) {
+      return currentImage.trim()
+    }
+    return null
+  }
+  
   const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<string | null>(currentImage || null)
+  const [preview, setPreview] = useState<string | null>(getInitialPreview())
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -32,7 +40,9 @@ export function ImageUpload({
       currentImage,
       preview,
       tipoCurrentImage: typeof currentImage,
-      esSupabase: currentImage && currentImage.includes('supabase.co')
+      esSupabase: currentImage && typeof currentImage === 'string' && currentImage.includes('supabase.co'),
+      esUnsplash: currentImage && typeof currentImage === 'string' && currentImage.includes('unsplash.com'),
+      previewInicial: getInitialPreview()
     })
   }, [])
 

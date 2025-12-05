@@ -131,17 +131,41 @@ export default function AdminPage() {
           console.log('📥 Productos cargados desde BD:', productosData.length)
           // Convertir el formato de la base de datos al formato esperado por el componente
           const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+            // Log detallado ANTES de procesar la imagen
+            if (p.nombre && p.nombre.includes('ACEITUNA NEGRA N 00 BALDE')) {
+              console.log('🔍 DEBUG - Producto antes de procesar imagen:', {
+                nombre: p.nombre,
+                imagenRaw: p.imagen,
+                tipoImagen: typeof p.imagen,
+                esNull: p.imagen === null,
+                esUndefined: p.imagen === undefined,
+                esString: typeof p.imagen === 'string',
+                tieneTrim: typeof p.imagen === 'string' ? p.imagen.trim() : 'N/A',
+                longitud: typeof p.imagen === 'string' ? p.imagen.length : 'N/A',
+                esSupabase: typeof p.imagen === 'string' && p.imagen.includes('supabase.co')
+              })
+            }
+            
             // Usar la imagen de la BD si existe, de lo contrario usar la por defecto
-            const imagenFinal = p.imagen && p.imagen.trim() !== '' 
-              ? p.imagen 
+            // IMPORTANTE: Verificar que imagen no sea null, undefined, o string vacío
+            const imagenFinal = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '')
+              ? p.imagen.trim()
               : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
             // Log detallado para productos con imágenes de Supabase
-            if (p.imagen && p.imagen.includes('supabase.co')) {
+            if (p.imagen && typeof p.imagen === 'string' && p.imagen.includes('supabase.co')) {
               console.log(`✅ Producto con imagen Supabase: ${p.nombre}`, {
                 imagenBD: p.imagen,
                 imagenFinal: imagenFinal,
                 index: index + 1
+              })
+            }
+            
+            // Log si se está usando imagen por defecto cuando debería haber imagen de Supabase
+            if (p.imagen && typeof p.imagen === 'string' && p.imagen.includes('supabase.co') && imagenFinal.includes('unsplash.com')) {
+              console.error(`❌ ERROR: Se perdió la imagen de Supabase para ${p.nombre}`, {
+                imagenOriginal: p.imagen,
+                imagenFinal: imagenFinal
               })
             }
             

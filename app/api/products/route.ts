@@ -12,6 +12,21 @@ export async function GET() {
       },
     })
 
+    // Log para verificar imágenes de productos específicos
+    const productosConImagen = products.filter(p => p.imagen && p.imagen.includes('supabase.co'))
+    console.log(`📦 API /products: Total productos: ${products.length}, Con imagen Supabase: ${productosConImagen.length}`)
+    
+    // Log detallado para un producto específico
+    const productoEspecifico = products.find(p => p.nombre && p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))
+    if (productoEspecifico) {
+      console.log('🔍 API /products - Producto específico:', {
+        nombre: productoEspecifico.nombre,
+        imagen: productoEspecifico.imagen,
+        tipoImagen: typeof productoEspecifico.imagen,
+        esNull: productoEspecifico.imagen === null
+      })
+    }
+
     // Agregar headers para evitar cache
     return NextResponse.json(products, {
       headers: {
