@@ -183,7 +183,7 @@ export default function AdminPage() {
               console.log('🔍 Mapeando producto al recargar:', {
                 nombre: p.nombre,
                 imagenRaw: p.imagen,
-                tieneImagenValida: tieneImagenValida,
+                tieneImagen: tieneImagen,
                 imagenOriginalBD: imagenOriginalBD,
                 imagenParaMostrar: imagenParaMostrar,
                 esSupabase: imagenOriginalBD && imagenOriginalBD.includes('supabase.co'),
