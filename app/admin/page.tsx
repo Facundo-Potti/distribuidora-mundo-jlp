@@ -147,37 +147,49 @@ export default function AdminPage() {
               })
             }
             
-            // Usar la imagen de la BD si existe, de lo contrario usar la por defecto
-            // IMPORTANTE: Verificar que imagen no sea null, undefined, o string vacío
-            const imagenFinal = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '')
-              ? p.imagen.trim()
-              : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+            // CRÍTICO: Extraer la imagen de la BD
+            // Verificar que p.imagen sea una string válida, no null, no undefined, no vacía
+            const tieneImagen = p.imagen !== null && 
+                                p.imagen !== undefined && 
+                                typeof p.imagen === 'string' && 
+                                p.imagen.trim() !== ''
+            
+            // Si tiene imagen, verificar si es de Supabase o Unsplash
+            let imagenOriginalBD: string | null = null
+            if (tieneImagen) {
+              const imagenTrim = p.imagen.trim()
+              // Solo guardar como "original" si es de Supabase (NO Unsplash)
+              if (imagenTrim.includes('supabase.co')) {
+                imagenOriginalBD = imagenTrim
+              }
+            }
+            
+            // Para mostrar: usar imagen de Supabase si existe, sino usar Unsplash por defecto
+            // Si p.imagen existe pero es Unsplash, usar p.imagen directamente
+            // Si imagenOriginalBD existe (Supabase), usarla
+            const imagenParaMostrar = imagenOriginalBD || (tieneImagen ? p.imagen.trim() : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop")
             
             // Log detallado para productos con imágenes de Supabase
-            if (p.imagen && typeof p.imagen === 'string' && p.imagen.includes('supabase.co')) {
+            if (imagenOriginalBD && imagenOriginalBD.includes('supabase.co')) {
               console.log(`✅ Producto con imagen Supabase: ${p.nombre}`, {
-                imagenBD: p.imagen,
-                imagenFinal: imagenFinal,
+                imagenBD: imagenOriginalBD,
+                imagenParaMostrar: imagenParaMostrar,
                 index: index + 1
               })
             }
             
-            // Log si se está usando imagen por defecto cuando debería haber imagen de Supabase
-            if (p.imagen && typeof p.imagen === 'string' && p.imagen.includes('supabase.co') && imagenFinal.includes('unsplash.com')) {
-              console.error(`❌ ERROR: Se perdió la imagen de Supabase para ${p.nombre}`, {
-                imagenOriginal: p.imagen,
-                imagenFinal: imagenFinal
+            // Log para debug de productos específicos
+            if (p.nombre && p.nombre.includes('ACEITUNA NEGRA N 00 BALDE')) {
+              console.log('🔍 Mapeando producto al recargar:', {
+                nombre: p.nombre,
+                imagenRaw: p.imagen,
+                tieneImagenValida: tieneImagenValida,
+                imagenOriginalBD: imagenOriginalBD,
+                imagenParaMostrar: imagenParaMostrar,
+                esSupabase: imagenOriginalBD && imagenOriginalBD.includes('supabase.co'),
+                esUnsplash: imagenParaMostrar.includes('unsplash.com')
               })
             }
-            
-            // CRÍTICO: Preservar la imagen original de la BD
-            const imagenOriginalBD = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '') 
-              ? p.imagen.trim() 
-              : null
-            
-            // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
-            // Solo usar Unsplash si realmente NO hay imagen en la BD
-            const imagenParaMostrar = imagenOriginalBD || imagenFinal
             
             return {
               id: index + 1, // Usar índice como ID numérico para compatibilidad
