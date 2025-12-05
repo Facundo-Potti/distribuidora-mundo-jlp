@@ -55,22 +55,39 @@ export async function POST(request: NextRequest) {
 
     if (productoExistente) {
       // Si existe, actualizarlo
-      console.log('Producto existe, actualizando:', productData)
+      console.log('📝 Producto existe, actualizando:', {
+        id: productoExistente.id,
+        nombre: productoExistente.nombre,
+        imagenActual: productoExistente.imagen,
+        imagenNueva: productData.imagen
+      })
       const productoActualizado = await prisma.product.update({
         where: { id: productoExistente.id },
         data: productData,
+      })
+
+      console.log('✅ Producto actualizado en BD:', {
+        id: productoActualizado.id,
+        nombre: productoActualizado.nombre,
+        imagen: productoActualizado.imagen,
+        imagenEsNull: productoActualizado.imagen === null
       })
 
       return NextResponse.json(productoActualizado)
     }
 
     // Crear nuevo producto
-    console.log('Creando nuevo producto:', productData)
+    console.log('📝 Creando nuevo producto:', productData)
     const nuevoProducto = await prisma.product.create({
       data: productData,
     })
 
-    console.log('Producto creado:', nuevoProducto)
+    console.log('✅ Producto creado en BD:', {
+      id: nuevoProducto.id,
+      nombre: nuevoProducto.nombre,
+      imagen: nuevoProducto.imagen,
+      imagenEsNull: nuevoProducto.imagen === null
+    })
 
     return NextResponse.json(nuevoProducto)
   } catch (error: any) {

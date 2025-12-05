@@ -126,16 +126,28 @@ export default function AdminPage() {
         if (response.ok) {
           const productosData = await response.json()
           // Convertir el formato de la base de datos al formato esperado por el componente
-          const productosFormateados: Producto[] = productosData.map((p: any, index: number) => ({
-            id: index + 1, // Usar índice como ID numérico para compatibilidad
-            nombre: p.nombre,
-            categoria: p.categoria,
-            precio: p.precio,
-            stock: p.stock || 0,
-            imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
-            descripcion: p.descripcion || "",
-            unidad: p.unidad || "",
-          }))
+          const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+            // Usar la imagen de la BD si existe, de lo contrario usar la por defecto
+            const imagenFinal = p.imagen && p.imagen.trim() !== '' 
+              ? p.imagen 
+              : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+            
+            console.log(`📦 Cargando producto ${p.nombre}:`, {
+              imagenBD: p.imagen,
+              imagenFinal: imagenFinal
+            })
+            
+            return {
+              id: index + 1, // Usar índice como ID numérico para compatibilidad
+              nombre: p.nombre,
+              categoria: p.categoria,
+              precio: p.precio,
+              stock: p.stock || 0,
+              imagen: imagenFinal,
+              descripcion: p.descripcion || "",
+              unidad: p.unidad || "",
+            }
+          })
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
         } else {
@@ -384,13 +396,26 @@ export default function AdminPage() {
       })
 
       // Actualizar estado local con el producto guardado
+      // IMPORTANTE: Usar la imagen guardada en la BD, no reemplazarla con la por defecto
+      const imagenGuardada = productoGuardado.imagen && productoGuardado.imagen.trim() !== ''
+        ? productoGuardado.imagen
+        : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+      
+      console.log('🖼️ Imagen del producto guardado:', {
+        imagenBD: productoGuardado.imagen,
+        imagenFinal: imagenGuardada,
+        esNull: productoGuardado.imagen === null,
+        esVacio: productoGuardado.imagen === '',
+        tipo: typeof productoGuardado.imagen
+      })
+      
       const nuevoProducto: Producto = {
         id: productoEditando ? productoEditando.id : Date.now(),
         nombre: productoGuardado.nombre,
         categoria: productoGuardado.categoria,
         precio: productoGuardado.precio,
         stock: productoGuardado.stock,
-        imagen: productoGuardado.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
+        imagen: imagenGuardada,
         descripcion: productoGuardado.descripcion || "",
         unidad: productoGuardado.unidad || "",
       }

@@ -19,6 +19,7 @@
     "db:init:prod": "tsx scripts/init-production.ts",
     "db:setup:prod": "tsx scripts/setup-production.ts",
     "verify:supabase": "tsx scripts/verificar-supabase.ts",
+    "verify:imagen": "tsx scripts/verificar-imagen-producto.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

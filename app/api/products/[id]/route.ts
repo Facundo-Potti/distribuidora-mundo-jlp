@@ -70,7 +70,8 @@ export async function PUT(
     updateData.descripcion = descripcion && descripcion.trim() !== '' ? descripcion.trim() : null
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
-    console.log('Datos a actualizar:', updateData)
+    console.log('📝 Datos a actualizar:', updateData)
+    console.log('🔍 Producto encontrado:', { id: producto.id, nombre: producto.nombre, imagenActual: producto.imagen })
 
     // Actualizar el producto
     const productoActualizado = await prisma.product.update({
@@ -78,7 +79,13 @@ export async function PUT(
       data: updateData,
     })
 
-    console.log('Producto actualizado:', productoActualizado)
+    console.log('✅ Producto actualizado en BD:', {
+      id: productoActualizado.id,
+      nombre: productoActualizado.nombre,
+      imagen: productoActualizado.imagen,
+      imagenEsNull: productoActualizado.imagen === null,
+      imagenEsVacio: productoActualizado.imagen === ''
+    })
 
     return NextResponse.json(productoActualizado)
   } catch (error: any) {
