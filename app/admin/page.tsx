@@ -344,10 +344,12 @@ export default function AdminPage() {
         categoria: formProducto.categoria,
         precio: formProducto.precio,
         stock: formProducto.stock,
-        imagen: formProducto.imagen || null,
-        descripcion: formProducto.descripcion || null,
-        unidad: formProducto.unidad || null,
+        imagen: formProducto.imagen && formProducto.imagen.trim() !== '' ? formProducto.imagen : null,
+        descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion : null,
+        unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad : null,
       }
+
+      console.log('Guardando producto con imagen:', bodyData.imagen)
 
       // Si estamos editando y el nombre cambió, incluir el nombre original
       if (productoEditando && productoEditando.nombre !== formProducto.nombre) {

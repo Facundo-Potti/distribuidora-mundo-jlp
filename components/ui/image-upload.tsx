@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Upload, X, Loader2 } from 'lucide-react'
@@ -23,6 +23,15 @@ export function ImageUpload({
   const [preview, setPreview] = useState<string | null>(currentImage || null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Actualizar preview cuando currentImage cambie
+  useEffect(() => {
+    if (currentImage && currentImage.trim() !== '') {
+      setPreview(currentImage)
+    } else {
+      setPreview(null)
+    }
+  }, [currentImage])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

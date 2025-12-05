@@ -22,6 +22,8 @@ export async function PUT(
     const body = await request.json()
     const { nombre, categoria, precio, stock, imagen, descripcion, unidad, nombreOriginal } = body
 
+    console.log('Actualizando producto. Imagen recibida:', imagen)
+
     // Si hay nombreOriginal, significa que se está renombrando el producto
     // Buscar el producto original por nombre
     const nombreBusqueda = nombreOriginal || nombre
@@ -49,19 +51,34 @@ export async function PUT(
       }
     }
 
+    // Preparar datos de actualización
+    const updateData: any = {
+      nombre,
+      categoria,
+      precio: parseFloat(precio),
+      stock: parseInt(stock),
+    }
+
+    // Manejar imagen: si viene una URL válida, guardarla; si viene null o vacío, mantener null
+    if (imagen && imagen.trim() !== '') {
+      updateData.imagen = imagen.trim()
+    } else {
+      updateData.imagen = null
+    }
+
+    // Manejar otros campos opcionales
+    updateData.descripcion = descripcion && descripcion.trim() !== '' ? descripcion.trim() : null
+    updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
+
+    console.log('Datos a actualizar:', updateData)
+
     // Actualizar el producto
     const productoActualizado = await prisma.product.update({
       where: { id: producto.id },
-      data: {
-        nombre,
-        categoria,
-        precio: parseFloat(precio),
-        stock: parseInt(stock),
-        imagen: imagen || null,
-        descripcion: descripcion || null,
-        unidad: unidad || null,
-      },
+      data: updateData,
     })
+
+    console.log('Producto actualizado:', productoActualizado)
 
     return NextResponse.json(productoActualizado)
   } catch (error: any) {
