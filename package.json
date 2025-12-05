@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
@@ -16,6 +16,7 @@
     "db:import": "tsx scripts/import-products-fixed.ts",
     "db:import:original": "tsx scripts/import-products.ts",
     "db:test": "tsx scripts/test-connection.ts",
+    "db:init:prod": "tsx scripts/init-production.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
