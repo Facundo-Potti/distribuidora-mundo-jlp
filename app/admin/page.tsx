@@ -157,9 +157,37 @@ export default function AdminPage() {
               imagenDeBD = p.imagen.trim()
             }
             
+            // Log detallado para productos específicos ANTES de procesar
+            if (p.nombre && (p.nombre.includes('ACEITUNA NEGRA N 00 BALDE') || p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG'))) {
+              console.log('🔍 ANTES de mapear - Producto desde BD:', {
+                nombre: p.nombre,
+                imagenRaw: p.imagen,
+                tipoImagen: typeof p.imagen,
+                esNull: p.imagen === null,
+                esUndefined: p.imagen === undefined,
+                esString: typeof p.imagen === 'string',
+                tieneContenido: p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== '',
+                esSupabase: p.imagen && typeof p.imagen === 'string' && p.imagen.includes('supabase.co'),
+                imagenDeBD: imagenDeBD
+              })
+            }
+            
             // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
             // Solo usar Unsplash si NO hay imagen en la BD
             const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+            
+            // Log detallado para verificar que la imagen se está extrayendo correctamente
+            if (p.nombre && (p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG') || p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))) {
+              console.log('🔍 EXTRAYENDO IMAGEN DE BD:', {
+                nombre: p.nombre,
+                p_imagen: p.imagen,
+                p_imagen_tipo: typeof p.imagen,
+                p_imagen_esNull: p.imagen === null,
+                p_imagen_esUndefined: p.imagen === undefined,
+                imagenDeBD: imagenDeBD,
+                imagenParaMostrar: imagenParaMostrar
+              })
+            }
             
             // Log detallado para productos con imágenes de Supabase
             if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
@@ -183,7 +211,7 @@ export default function AdminPage() {
               })
             }
             
-            return {
+            const productoMapeado = {
               id: index + 1, // Usar índice como ID numérico para compatibilidad
               nombre: p.nombre,
               categoria: p.categoria,
@@ -196,6 +224,31 @@ export default function AdminPage() {
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
+            
+            // Log para verificar que imagenOriginal se guardó correctamente
+            if (p.nombre && (p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG') || p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))) {
+              console.log('✅ Producto mapeado final:', {
+                nombre: productoMapeado.nombre,
+                imagen: productoMapeado.imagen,
+                imagenOriginal: productoMapeado.imagenOriginal,
+                imagenOriginalEsNull: productoMapeado.imagenOriginal === null,
+                imagenOriginalEsString: typeof productoMapeado.imagenOriginal === 'string',
+                imagenOriginalIncluyeSupabase: productoMapeado.imagenOriginal && productoMapeado.imagenOriginal.includes('supabase.co')
+              })
+            }
+            
+            // Log para verificar que imagenOriginal se guarda correctamente
+            if (p.nombre && (p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG') || p.nombre.includes('ACEITUNA NEGRA N 00 BALDE'))) {
+              console.log('✅ PRODUCTO MAPEADO:', {
+                nombre: productoMapeado.nombre,
+                imagen: productoMapeado.imagen,
+                imagenOriginal: productoMapeado.imagenOriginal,
+                tieneImagenOriginal: !!productoMapeado.imagenOriginal,
+                imagenOriginalEsSupabase: productoMapeado.imagenOriginal && productoMapeado.imagenOriginal.includes('supabase.co')
+              })
+            }
+            
+            return productoMapeado
           })
           
           // Verificar que las imágenes se cargaron correctamente
@@ -380,6 +433,24 @@ export default function AdminPage() {
   // Funciones de productos
   const abrirDialogProducto = (producto?: Producto) => {
     if (producto) {
+      // CRÍTICO: Debug detallado del producto antes de procesar
+      console.log('🔍 Producto recibido en abrirDialogProducto:', {
+        nombre: producto.nombre,
+        id: producto.id,
+        imagen: producto.imagen,
+        imagenOriginal: producto.imagenOriginal,
+        tipoImagen: typeof producto.imagen,
+        tipoImagenOriginal: typeof producto.imagenOriginal,
+        imagenEsNull: producto.imagen === null,
+        imagenOriginalEsNull: producto.imagenOriginal === null,
+        imagenEsUndefined: producto.imagen === undefined,
+        imagenOriginalEsUndefined: producto.imagenOriginal === undefined,
+        imagenEsString: typeof producto.imagen === 'string',
+        imagenOriginalEsString: typeof producto.imagenOriginal === 'string',
+        imagenIncluyeSupabase: producto.imagen && typeof producto.imagen === 'string' && producto.imagen.includes('supabase.co'),
+        imagenOriginalIncluyeSupabase: producto.imagenOriginal && typeof producto.imagenOriginal === 'string' && producto.imagenOriginal.includes('supabase.co')
+      })
+      
       // Usar imagenOriginal si existe (imagen real de la BD), de lo contrario usar imagen
       const imagenParaEditar = producto.imagenOriginal || producto.imagen
       
@@ -407,7 +478,8 @@ export default function AdminPage() {
       console.log('✅ FormProducto actualizado con imagen:', {
         imagenParaEditar: imagenParaEditar,
         imagenParaFormulario: imagenParaFormulario,
-        esSupabase: imagenParaFormulario.includes('supabase.co')
+        esSupabase: imagenParaFormulario.includes('supabase.co'),
+        longitud: imagenParaFormulario.length
       })
       
       setFormProducto({
