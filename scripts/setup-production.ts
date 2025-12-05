@@ -1,63 +1,52 @@
 /**
- * Script para inicializar la base de datos de producción
- * 
- * Uso:
- * 1. Configura DATABASE_URL en .env.local con la URL de Supabase
- * 2. Ejecuta: npx tsx scripts/init-production.ts
+ * Script completo para configurar la base de datos de producción
+ * 1. Crea las tablas
+ * 2. Inicializa con usuarios y productos
  */
-
-// Cargar variables de entorno desde .env.local
-import { config } from 'dotenv'
-import { resolve } from 'path'
-
-config({ path: resolve(process.cwd(), '.env.local') })
 
 import { PrismaClient } from '@prisma/client'
 import * as bcrypt from 'bcryptjs'
+import { execSync } from 'child_process'
 
-async function initProduction() {
-  // Crear nueva instancia del cliente para evitar conflictos con prepared statements
-  const prisma = new PrismaClient({
-    log: ['error'],
-  })
+const prisma = new PrismaClient()
 
+async function setupProduction() {
   try {
-    console.log('🔧 Inicializando base de datos de producción...\n')
+    console.log('🚀 Configurando base de datos de producción...\n')
 
-    // Verificar conexión
+    // Paso 1: Crear tablas usando script simple
+    console.log('📋 Paso 1: Creando tablas en la base de datos...')
+    try {
+      // Importar y ejecutar el script de crear tablas
+      const { execSync } = require('child_process')
+      execSync('npx tsx scripts/crear-tablas-simple.ts', { 
+        stdio: 'inherit',
+        env: { ...process.env }
+      })
+      console.log('✅ Tablas creadas exitosamente\n')
+    } catch (error) {
+      console.error('❌ Error al crear tablas:', error)
+      throw error
+    }
+
+    // Paso 2: Verificar conexión
+    console.log('🔌 Paso 2: Verificando conexión...')
     await prisma.$connect()
     console.log('✅ Conectado a la base de datos\n')
 
-    // Pequeña pausa para evitar conflictos con prepared statements
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // Verificar si ya hay usuarios
+    // Paso 3: Verificar si ya hay usuarios
+    console.log('👤 Paso 3: Verificando usuarios existentes...')
     const existingUsers = await prisma.user.count()
     
     if (existingUsers > 0) {
-      console.log('⚠️  Ya existen usuarios en la base de datos.')
-      console.log(`   Total de usuarios: ${existingUsers}\n`)
-      
-      const response = await new Promise<string>((resolve) => {
-        const readline = require('readline').createInterface({
-          input: process.stdin,
-          output: process.stdout
-        })
-        
-        readline.question('¿Deseas continuar y crear/actualizar usuarios? (s/n): ', (answer: string) => {
-          readline.close()
-          resolve(answer.toLowerCase())
-        })
-      })
-
-      if (response !== 's' && response !== 'y' && response !== 'sí') {
-        console.log('❌ Operación cancelada')
-        return
-      }
+      console.log(`⚠️  Ya existen ${existingUsers} usuarios en la base de datos.`)
+      console.log('   Continuando para actualizar/crear usuarios...\n')
+    } else {
+      console.log('✅ No hay usuarios, creando nuevos...\n')
     }
 
-    // Crear usuarios
-    console.log('👤 Creando usuarios...')
+    // Paso 4: Crear usuarios
+    console.log('👤 Paso 4: Creando/actualizando usuarios...')
     
     const adminPassword = await bcrypt.hash('admin123', 10)
     const demoPassword = await bcrypt.hash('demo123', 10)
@@ -92,8 +81,8 @@ async function initProduction() {
 
     console.log('✅ Usuarios creados/actualizados\n')
 
-    // Crear productos de ejemplo
-    console.log('📦 Creando productos de ejemplo...')
+    // Paso 5: Crear productos
+    console.log('📦 Paso 5: Creando productos de ejemplo...')
     
     const productos = [
       {
@@ -132,10 +121,11 @@ async function initProduction() {
 
     console.log('✅ Productos creados\n')
 
-    console.log('🎉 Base de datos inicializada correctamente!\n')
+    console.log('🎉 Base de datos configurada correctamente!\n')
     console.log('📋 Credenciales:')
     console.log('   Admin: admin@mundojlp.com / admin123')
     console.log('   Usuario: demo@mundojlp.com / demo123\n')
+    console.log('🌐 Prueba el login en: https://distribuidora-mundo-jlp.vercel.app/auth/login\n')
 
   } catch (error) {
     console.error('❌ Error:', error)
@@ -145,5 +135,5 @@ async function initProduction() {
   }
 }
 
-initProduction()
+setupProduction()
 

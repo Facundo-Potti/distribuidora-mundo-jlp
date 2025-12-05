@@ -17,6 +17,7 @@
     "db:import:original": "tsx scripts/import-products.ts",
     "db:test": "tsx scripts/test-connection.ts",
     "db:init:prod": "tsx scripts/init-production.ts",
+    "db:setup:prod": "tsx scripts/setup-production.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
