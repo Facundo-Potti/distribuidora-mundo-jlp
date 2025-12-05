@@ -170,10 +170,14 @@ export default function AdminPage() {
               })
             }
             
-            // CRÍTICO: Preservar la imagen original de la BD para edición
+            // CRÍTICO: Preservar la imagen original de la BD
             const imagenOriginalBD = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '') 
               ? p.imagen.trim() 
               : null
+            
+            // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
+            // Solo usar Unsplash si realmente NO hay imagen en la BD
+            const imagenParaMostrar = imagenOriginalBD || imagenFinal
             
             return {
               id: index + 1, // Usar índice como ID numérico para compatibilidad
@@ -181,9 +185,9 @@ export default function AdminPage() {
               categoria: p.categoria,
               precio: p.precio,
               stock: p.stock || 0,
-              // Para mostrar en la lista: usar imagen de BD si existe, sino Unsplash
-              imagen: imagenFinal,
-              // CRÍTICO: Guardar la imagen ORIGINAL de la BD para edición (sin reemplazar con Unsplash)
+              // CRÍTICO: imagen debe tener la URL de Supabase si existe, NO Unsplash
+              imagen: imagenParaMostrar,
+              // CRÍTICO: Guardar la imagen ORIGINAL de la BD (puede ser null si no hay imagen)
               imagenOriginal: imagenOriginalBD,
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
@@ -472,19 +476,21 @@ export default function AdminPage() {
       })
 
       // Actualizar estado local con el producto guardado
-      // CRÍTICO: Usar SIEMPRE la imagen de la BD si existe, NUNCA reemplazarla con Unsplash
+      // CRÍTICO: Extraer la imagen de la BD
       const imagenDeBD = productoGuardado.imagen && typeof productoGuardado.imagen === 'string' && productoGuardado.imagen.trim() !== ''
         ? productoGuardado.imagen.trim()
         : null
       
-      // Para mostrar en la lista: usar imagen de BD si existe, sino Unsplash por defecto
+      // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
+      // Solo usar Unsplash si realmente NO hay imagen guardada
       const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
       
       console.log('🖼️ Imagen del producto guardado:', {
         imagenBD: productoGuardado.imagen,
         imagenDeBD: imagenDeBD,
         imagenParaMostrar: imagenParaMostrar,
-        esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co')
+        esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co'),
+        esNull: imagenDeBD === null
       })
       
       const nuevoProducto: Producto = {
@@ -493,8 +499,10 @@ export default function AdminPage() {
         categoria: productoGuardado.categoria,
         precio: productoGuardado.precio,
         stock: productoGuardado.stock,
-        imagen: imagenParaMostrar, // Para mostrar en la lista
-        imagenOriginal: imagenDeBD, // CRÍTICO: Guardar la imagen real de la BD para edición
+        // CRÍTICO: imagen debe tener la URL de Supabase si existe, NO Unsplash
+        imagen: imagenParaMostrar,
+        // CRÍTICO: Guardar la imagen real de la BD (puede ser null si no hay imagen)
+        imagenOriginal: imagenDeBD,
         descripcion: productoGuardado.descripcion || "",
         unidad: productoGuardado.unidad || "",
       }
@@ -512,44 +520,9 @@ export default function AdminPage() {
         productosActualizados = [...productos, nuevoProducto]
       }
       
-      // Actualizar productos primero
+      // Actualizar productos con la imagen correcta de la BD
+      // NO recargar desde la BD porque ya tenemos los datos correctos del productoGuardado
       setProductos(productosActualizados)
-      
-      // CRÍTICO: Recargar productos desde la BD para asegurar sincronización
-      // Esto garantiza que la imagen guardada se muestre correctamente
-      console.log('🔄 Recargando productos desde BD después de guardar...')
-      setTimeout(async () => {
-        try {
-          const response = await fetch(`/api/products?t=${Date.now()}`, {
-            cache: 'no-store',
-          })
-          if (response.ok) {
-            const productosData = await response.json()
-            const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-              const imagenOriginalBD = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '') 
-                ? p.imagen.trim() 
-                : null
-              const imagenFinal = imagenOriginalBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-              
-              return {
-                id: index + 1,
-                nombre: p.nombre,
-                categoria: p.categoria,
-                precio: p.precio,
-                stock: p.stock || 0,
-                imagen: imagenFinal,
-                imagenOriginal: imagenOriginalBD,
-                descripcion: p.descripcion || "",
-                unidad: p.unidad || "",
-              }
-            })
-            setProductos(productosFormateados)
-            console.log('✅ Productos recargados desde BD:', productosFormateados.length)
-          }
-        } catch (error) {
-          console.error('Error al recargar productos:', error)
-        }
-      }, 500) // Pequeño delay para asegurar que la BD se actualizó
       
       // Luego actualizar productosFiltrados aplicando los filtros actuales
       let filtrados = productosActualizados
@@ -1058,24 +1031,34 @@ export default function AdminPage() {
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden">
-                      <img
-                        key={`img-${producto.nombre}-${producto.imagenOriginal || producto.imagen}-${refreshKey}`}
-                        src={producto.imagenOriginal || producto.imagen}
-                        alt={producto.nombre}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                          console.error('❌ Error al cargar imagen:', producto.nombre, producto.imagenOriginal || producto.imagen)
-                          // Si falla, usar imagen por defecto
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-                        }}
-                        onLoad={() => {
-                          const imagenUsada = producto.imagenOriginal || producto.imagen
-                          if (imagenUsada?.includes('supabase.co')) {
-                            console.log('✅ Imagen cargada desde Supabase:', producto.nombre, imagenUsada)
-                          }
-                        }}
-                      />
+                      {(() => {
+                        // CRÍTICO: Usar SIEMPRE imagenOriginal si existe (imagen de Supabase)
+                        // Solo usar imagen si imagenOriginal es null/undefined
+                        const imagenParaMostrar = producto.imagenOriginal || producto.imagen
+                        const esImagenSupabase = imagenParaMostrar && imagenParaMostrar.includes('supabase.co')
+                        
+                        return (
+                          <img
+                            key={`img-${producto.nombre}-${imagenParaMostrar}-${refreshKey}`}
+                            src={imagenParaMostrar}
+                            alt={producto.nombre}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              console.error('❌ Error al cargar imagen:', producto.nombre, imagenParaMostrar)
+                              // Solo usar imagen por defecto si NO es una imagen de Supabase
+                              if (!esImagenSupabase) {
+                                e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+                              }
+                            }}
+                            onLoad={() => {
+                              if (esImagenSupabase) {
+                                console.log('✅ Imagen cargada desde Supabase:', producto.nombre, imagenParaMostrar)
+                              }
+                            }}
+                          />
+                        )
+                      })()}
                     </div>
                     <CardHeader>
                       <div className="flex items-start justify-between">
