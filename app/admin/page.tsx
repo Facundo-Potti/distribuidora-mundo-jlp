@@ -147,32 +147,24 @@ export default function AdminPage() {
               })
             }
             
-            // CRÍTICO: Extraer la imagen de la BD
-            // Verificar que p.imagen sea una string válida, no null, no undefined, no vacía
-            const tieneImagen = p.imagen !== null && 
-                                p.imagen !== undefined && 
-                                typeof p.imagen === 'string' && 
-                                p.imagen.trim() !== ''
-            
-            // Si tiene imagen, verificar si es de Supabase o Unsplash
-            let imagenOriginalBD: string | null = null
-            if (tieneImagen) {
-              const imagenTrim = p.imagen.trim()
-              // Solo guardar como "original" si es de Supabase (NO Unsplash)
-              if (imagenTrim.includes('supabase.co')) {
-                imagenOriginalBD = imagenTrim
-              }
+            // CRÍTICO: Extraer y preservar la imagen de la BD
+            // Si p.imagen existe y es una string válida, usarla
+            let imagenDeBD: string | null = null
+            if (p.imagen !== null && 
+                p.imagen !== undefined && 
+                typeof p.imagen === 'string' && 
+                p.imagen.trim() !== '') {
+              imagenDeBD = p.imagen.trim()
             }
             
-            // Para mostrar: usar imagen de Supabase si existe, sino usar Unsplash por defecto
-            // Si p.imagen existe pero es Unsplash, usar p.imagen directamente
-            // Si imagenOriginalBD existe (Supabase), usarla
-            const imagenParaMostrar = imagenOriginalBD || (tieneImagen ? p.imagen.trim() : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop")
+            // CRÍTICO: Para mostrar, usar SIEMPRE la imagen de la BD si existe
+            // Solo usar Unsplash si NO hay imagen en la BD
+            const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
             // Log detallado para productos con imágenes de Supabase
-            if (imagenOriginalBD && imagenOriginalBD.includes('supabase.co')) {
+            if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
               console.log(`✅ Producto con imagen Supabase: ${p.nombre}`, {
-                imagenBD: imagenOriginalBD,
+                imagenBD: imagenDeBD,
                 imagenParaMostrar: imagenParaMostrar,
                 index: index + 1
               })
@@ -183,10 +175,9 @@ export default function AdminPage() {
               console.log('🔍 Mapeando producto al recargar:', {
                 nombre: p.nombre,
                 imagenRaw: p.imagen,
-                tieneImagen: tieneImagen,
-                imagenOriginalBD: imagenOriginalBD,
+                imagenDeBD: imagenDeBD,
                 imagenParaMostrar: imagenParaMostrar,
-                esSupabase: imagenOriginalBD && imagenOriginalBD.includes('supabase.co'),
+                esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co'),
                 esUnsplash: imagenParaMostrar.includes('unsplash.com')
               })
             }
@@ -197,10 +188,10 @@ export default function AdminPage() {
               categoria: p.categoria,
               precio: p.precio,
               stock: p.stock || 0,
-              // CRÍTICO: imagen debe tener la URL de Supabase si existe, NO Unsplash
+              // CRÍTICO: imagen debe tener la URL de Supabase si existe en la BD
               imagen: imagenParaMostrar,
               // CRÍTICO: Guardar la imagen ORIGINAL de la BD (puede ser null si no hay imagen)
-              imagenOriginal: imagenOriginalBD,
+              imagenOriginal: imagenDeBD,
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
@@ -1042,22 +1033,59 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
-                    <div className="relative h-48 bg-gray-100 overflow-hidden">
+                    <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
                       {(() => {
-                        // CRÍTICO: Usar SIEMPRE imagenOriginal si existe (imagen de Supabase)
-                        // Solo usar imagen si imagenOriginal es null/undefined
-                        const imagenParaMostrar = producto.imagenOriginal || producto.imagen
+                        // CRÍTICO: Priorizar imagenOriginal (imagen de Supabase de la BD)
+                        // Si imagenOriginal existe, usarla (es la imagen real de la BD)
+                        // Si no, usar imagen (que puede ser Supabase o Unsplash)
+                        let imagenParaMostrar = producto.imagenOriginal || producto.imagen
+                        
+                        // Si imagenOriginal es null pero imagen es de Supabase, usar imagen
+                        if (!producto.imagenOriginal && producto.imagen && producto.imagen.includes('supabase.co')) {
+                          imagenParaMostrar = producto.imagen
+                        }
+                        
                         const esImagenSupabase = imagenParaMostrar && imagenParaMostrar.includes('supabase.co')
+                        
+                        // Log para debug
+                        if (producto.nombre && producto.nombre.includes('ACEITUNA NEGRA N 00 BALDE')) {
+                          console.log('🖼️ Renderizando imagen:', {
+                            nombre: producto.nombre,
+                            imagenOriginal: producto.imagenOriginal,
+                            imagen: producto.imagen,
+                            imagenParaMostrar: imagenParaMostrar,
+                            esSupabase: esImagenSupabase,
+                            key: `img-${producto.nombre}-${imagenParaMostrar}`
+                          })
+                        }
+                        
+                        // CRÍTICO: Usar un key estable que incluya la URL de la imagen para forzar re-render cuando cambie
+                        const imgKey = `img-${producto.id}-${producto.nombre}-${imagenParaMostrar}`
+                        
+                        // Agregar timestamp a la URL de Supabase para evitar caché del navegador
+                        let srcConCacheBust = imagenParaMostrar
+                        if (esImagenSupabase && imagenParaMostrar.includes('supabase.co')) {
+                          // Solo agregar timestamp si no tiene parámetros de query
+                          srcConCacheBust = imagenParaMostrar.includes('?') 
+                            ? `${imagenParaMostrar}&t=${Date.now()}`
+                            : `${imagenParaMostrar}?t=${Date.now()}`
+                        }
                         
                         return (
                           <img
-                            key={`img-${producto.nombre}-${imagenParaMostrar}-${refreshKey}`}
-                            src={imagenParaMostrar}
+                            key={imgKey}
+                            src={srcConCacheBust}
                             alt={producto.nombre}
                             className="absolute inset-0 w-full h-full object-cover"
                             loading="lazy"
+                            style={{ display: 'block', width: '100%', height: '100%' }}
                             onError={(e) => {
-                              console.error('❌ Error al cargar imagen:', producto.nombre, imagenParaMostrar)
+                              console.error('❌ Error al cargar imagen:', {
+                                nombre: producto.nombre,
+                                url: srcConCacheBust,
+                                urlOriginal: imagenParaMostrar,
+                                error: e
+                              })
                               // Solo usar imagen por defecto si NO es una imagen de Supabase
                               if (!esImagenSupabase) {
                                 e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
@@ -1065,7 +1093,11 @@ export default function AdminPage() {
                             }}
                             onLoad={() => {
                               if (esImagenSupabase) {
-                                console.log('✅ Imagen cargada desde Supabase:', producto.nombre, imagenParaMostrar)
+                                console.log('✅ Imagen cargada exitosamente desde Supabase:', {
+                                  nombre: producto.nombre,
+                                  url: srcConCacheBust,
+                                  urlOriginal: imagenParaMostrar
+                                })
                               }
                             }}
                           />
