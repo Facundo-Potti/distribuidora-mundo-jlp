@@ -47,19 +47,35 @@ export function ImageUpload({
   }, [])
 
   // Actualizar preview cuando currentImage cambie
+  // IMPORTANTE: Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash
   useEffect(() => {
     console.log('🔄 ImageUpload - currentImage cambió:', {
       currentImage,
       tipo: typeof currentImage,
       esString: typeof currentImage === 'string',
-      tieneContenido: currentImage && currentImage.trim() !== '',
-      esSupabase: currentImage && currentImage.includes('supabase.co')
+      tieneContenido: currentImage && typeof currentImage === 'string' && currentImage.trim() !== '',
+      esSupabase: currentImage && typeof currentImage === 'string' && currentImage.includes('supabase.co'),
+      esUnsplash: currentImage && typeof currentImage === 'string' && currentImage.includes('unsplash.com')
     })
-    if (currentImage && currentImage.trim() !== '') {
-      console.log('✅ ImageUpload - Estableciendo preview:', currentImage)
-      setPreview(currentImage)
+    
+    // Solo establecer preview si:
+    // 1. Es una string válida
+    // 2. No es una imagen por defecto de Unsplash
+    // 3. Tiene contenido
+    if (
+      currentImage && 
+      typeof currentImage === 'string' && 
+      currentImage.trim() !== '' &&
+      !currentImage.includes('unsplash.com')
+    ) {
+      console.log('✅ ImageUpload - Estableciendo preview (imagen válida):', currentImage)
+      setPreview(currentImage.trim())
     } else {
-      console.log('❌ ImageUpload - No hay imagen, limpiando preview')
+      console.log('❌ ImageUpload - No hay imagen válida, limpiando preview', {
+        razon: !currentImage ? 'currentImage es falsy' : 
+               currentImage.includes('unsplash.com') ? 'es imagen por defecto de Unsplash' :
+               'string vacío'
+      })
       setPreview(null)
     }
   }, [currentImage])

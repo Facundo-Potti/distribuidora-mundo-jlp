@@ -50,7 +50,8 @@ interface Producto {
   categoria: string
   precio: number
   stock: number
-  imagen: string
+  imagen: string // Para mostrar en la lista (puede ser Unsplash por defecto)
+  imagenOriginal?: string | null // Imagen real de la BD (para edición)
   descripcion?: string
   unidad?: string
 }
@@ -169,13 +170,21 @@ export default function AdminPage() {
               })
             }
             
+            // CRÍTICO: Preservar la imagen original de la BD para edición
+            const imagenOriginalBD = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '') 
+              ? p.imagen.trim() 
+              : null
+            
             return {
               id: index + 1, // Usar índice como ID numérico para compatibilidad
               nombre: p.nombre,
               categoria: p.categoria,
               precio: p.precio,
               stock: p.stock || 0,
-              imagen: imagenFinal, // IMPORTANTE: Usar la imagen de la BD
+              // Para mostrar en la lista: usar imagen de BD si existe, sino Unsplash
+              imagen: imagenFinal,
+              // CRÍTICO: Guardar la imagen ORIGINAL de la BD para edición (sin reemplazar con Unsplash)
+              imagenOriginal: imagenOriginalBD,
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
@@ -363,11 +372,17 @@ export default function AdminPage() {
   // Funciones de productos
   const abrirDialogProducto = (producto?: Producto) => {
     if (producto) {
+      // Usar imagenOriginal si existe (imagen real de la BD), de lo contrario usar imagen
+      const imagenParaEditar = producto.imagenOriginal || producto.imagen
+      
       console.log('📝 Abriendo diálogo para editar producto:', {
         nombre: producto.nombre,
         imagen: producto.imagen,
-        tipoImagen: typeof producto.imagen,
-        esSupabase: producto.imagen && producto.imagen.includes('supabase.co')
+        imagenOriginal: producto.imagenOriginal,
+        imagenParaEditar: imagenParaEditar,
+        tipoImagen: typeof imagenParaEditar,
+        esSupabase: imagenParaEditar && typeof imagenParaEditar === 'string' && imagenParaEditar.includes('supabase.co'),
+        esUnsplash: imagenParaEditar && typeof imagenParaEditar === 'string' && imagenParaEditar.includes('unsplash.com')
       })
       setProductoEditando(producto)
       setFormProducto({
@@ -375,11 +390,12 @@ export default function AdminPage() {
         categoria: producto.categoria,
         precio: producto.precio.toString(),
         stock: producto.stock.toString(),
-        imagen: producto.imagen,
+        // IMPORTANTE: Usar imagenOriginal si existe, para evitar usar imagen por defecto de Unsplash
+        imagen: imagenParaEditar && !imagenParaEditar.includes('unsplash.com') ? imagenParaEditar : '',
         descripcion: producto.descripcion || "",
         unidad: producto.unidad || "",
       })
-      console.log('✅ FormProducto actualizado con imagen:', producto.imagen)
+      console.log('✅ FormProducto actualizado con imagen:', imagenParaEditar)
     } else {
       setProductoEditando(null)
       setFormProducto({
@@ -449,21 +465,26 @@ export default function AdminPage() {
       console.log('✅ Producto guardado en BD:', {
         nombre: productoGuardado.nombre,
         imagen: productoGuardado.imagen,
+        imagenEsNull: productoGuardado.imagen === null,
+        imagenEsString: typeof productoGuardado.imagen === 'string',
+        imagenTieneContenido: productoGuardado.imagen && productoGuardado.imagen.trim() !== '',
         productoCompleto: productoGuardado
       })
 
       // Actualizar estado local con el producto guardado
-      // IMPORTANTE: Usar la imagen guardada en la BD, no reemplazarla con la por defecto
-      const imagenGuardada = productoGuardado.imagen && productoGuardado.imagen.trim() !== ''
-        ? productoGuardado.imagen
-        : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+      // CRÍTICO: Usar SIEMPRE la imagen de la BD si existe, NUNCA reemplazarla con Unsplash
+      const imagenDeBD = productoGuardado.imagen && typeof productoGuardado.imagen === 'string' && productoGuardado.imagen.trim() !== ''
+        ? productoGuardado.imagen.trim()
+        : null
+      
+      // Para mostrar en la lista: usar imagen de BD si existe, sino Unsplash por defecto
+      const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
       
       console.log('🖼️ Imagen del producto guardado:', {
         imagenBD: productoGuardado.imagen,
-        imagenFinal: imagenGuardada,
-        esNull: productoGuardado.imagen === null,
-        esVacio: productoGuardado.imagen === '',
-        tipo: typeof productoGuardado.imagen
+        imagenDeBD: imagenDeBD,
+        imagenParaMostrar: imagenParaMostrar,
+        esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co')
       })
       
       const nuevoProducto: Producto = {
@@ -472,7 +493,8 @@ export default function AdminPage() {
         categoria: productoGuardado.categoria,
         precio: productoGuardado.precio,
         stock: productoGuardado.stock,
-        imagen: imagenGuardada,
+        imagen: imagenParaMostrar, // Para mostrar en la lista
+        imagenOriginal: imagenDeBD, // CRÍTICO: Guardar la imagen real de la BD para edición
         descripcion: productoGuardado.descripcion || "",
         unidad: productoGuardado.unidad || "",
       }
@@ -492,6 +514,42 @@ export default function AdminPage() {
       
       // Actualizar productos primero
       setProductos(productosActualizados)
+      
+      // CRÍTICO: Recargar productos desde la BD para asegurar sincronización
+      // Esto garantiza que la imagen guardada se muestre correctamente
+      console.log('🔄 Recargando productos desde BD después de guardar...')
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/products?t=${Date.now()}`, {
+            cache: 'no-store',
+          })
+          if (response.ok) {
+            const productosData = await response.json()
+            const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+              const imagenOriginalBD = (p.imagen !== null && p.imagen !== undefined && typeof p.imagen === 'string' && p.imagen.trim() !== '') 
+                ? p.imagen.trim() 
+                : null
+              const imagenFinal = imagenOriginalBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+              
+              return {
+                id: index + 1,
+                nombre: p.nombre,
+                categoria: p.categoria,
+                precio: p.precio,
+                stock: p.stock || 0,
+                imagen: imagenFinal,
+                imagenOriginal: imagenOriginalBD,
+                descripcion: p.descripcion || "",
+                unidad: p.unidad || "",
+              }
+            })
+            setProductos(productosFormateados)
+            console.log('✅ Productos recargados desde BD:', productosFormateados.length)
+          }
+        } catch (error) {
+          console.error('Error al recargar productos:', error)
+        }
+      }, 500) // Pequeño delay para asegurar que la BD se actualizó
       
       // Luego actualizar productosFiltrados aplicando los filtros actuales
       let filtrados = productosActualizados
@@ -1001,19 +1059,20 @@ export default function AdminPage() {
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden">
                       <img
-                        key={`img-${producto.nombre}-${producto.imagen}-${refreshKey}`}
-                        src={producto.imagen}
+                        key={`img-${producto.nombre}-${producto.imagenOriginal || producto.imagen}-${refreshKey}`}
+                        src={producto.imagenOriginal || producto.imagen}
                         alt={producto.nombre}
                         className="absolute inset-0 w-full h-full object-cover"
                         loading="lazy"
                         onError={(e) => {
-                          console.error('❌ Error al cargar imagen:', producto.nombre, producto.imagen)
+                          console.error('❌ Error al cargar imagen:', producto.nombre, producto.imagenOriginal || producto.imagen)
                           // Si falla, usar imagen por defecto
                           e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
                         }}
                         onLoad={() => {
-                          if (producto.imagen?.includes('supabase.co')) {
-                            console.log('✅ Imagen cargada:', producto.nombre, producto.imagen)
+                          const imagenUsada = producto.imagenOriginal || producto.imagen
+                          if (imagenUsada?.includes('supabase.co')) {
+                            console.log('✅ Imagen cargada desde Supabase:', producto.nombre, imagenUsada)
                           }
                         }}
                       />
