@@ -396,29 +396,51 @@ export default function AdminPage() {
       
       console.log('📦 Producto formateado para UI:', nuevoProducto)
 
+      // Actualizar estado local inmediatamente para reflejar cambios en la UI
       if (productoEditando) {
-        setProductos(productos.map((p) => (p.id === productoEditando.id ? nuevoProducto : p)))
+        const productosActualizados = productos.map((p) => 
+          p.id === productoEditando.id ? nuevoProducto : p
+        )
+        setProductos(productosActualizados)
+        // Actualizar también productosFiltrados para que se refleje en la UI
+        setProductosFiltrados(productosFiltrados.map((p) => 
+          p.id === productoEditando.id ? nuevoProducto : p
+        ))
       } else {
-        setProductos([...productos, nuevoProducto])
+        const productosActualizados = [...productos, nuevoProducto]
+        setProductos(productosActualizados)
+        setProductosFiltrados(productosActualizados)
       }
 
-      // Recargar productos desde la base de datos para asegurar sincronización
-      const productosResponse = await fetch('/api/products')
-      if (productosResponse.ok) {
-        const productosData = await productosResponse.json()
-        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => ({
-          id: index + 1,
-          nombre: p.nombre,
-          categoria: p.categoria,
-          precio: p.precio,
-          stock: p.stock || 0,
-          imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
-          descripcion: p.descripcion || "",
-          unidad: p.unidad || "",
-        }))
-        setProductos(productosFormateados)
-        setProductosFiltrados(productosFormateados)
-      }
+      // Recargar productos desde la base de datos en segundo plano para sincronización
+      // Esto asegura que si hay cambios en otros lugares, se reflejen
+      setTimeout(async () => {
+        try {
+          const productosResponse = await fetch('/api/products')
+          if (productosResponse.ok) {
+            const productosData = await productosResponse.json()
+            // Mantener el ID basado en el nombre para consistencia
+            const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+              // Buscar el ID existente del producto por nombre para mantener consistencia
+              const productoExistente = productos.find(prod => prod.nombre === p.nombre)
+              return {
+                id: productoExistente?.id || index + 1,
+                nombre: p.nombre,
+                categoria: p.categoria,
+                precio: p.precio,
+                stock: p.stock || 0,
+                imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
+                descripcion: p.descripcion || "",
+                unidad: p.unidad || "",
+              }
+            })
+            setProductos(productosFormateados)
+            setProductosFiltrados(productosFormateados)
+          }
+        } catch (error) {
+          console.error('Error al recargar productos:', error)
+        }
+      }, 500) // Pequeño delay para no interferir con la actualización inmediata
 
       setDialogProductoAbierto(false)
       setProductoEditando(null)
@@ -897,14 +919,16 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {productosFiltrados.map((producto) => (
-                  <Card key={producto.id} className="overflow-hidden border-2 hover:border-primary transition-all">
+                  <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48">
                       <Image
+                        key={`img-${producto.nombre}-${producto.imagen}`}
                         src={producto.imagen}
                         alt={producto.nombre}
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        unoptimized={producto.imagen?.includes('supabase.co')}
                       />
                     </div>
                     <CardHeader>
