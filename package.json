@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:import": "tsx scripts/import-products-fixed.ts",
     "db:import:original": "tsx scripts/import-products.ts",
+    "db:test": "tsx scripts/test-connection.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
