@@ -21,7 +21,10 @@ export function ImageUpload({
 }: ImageUploadProps) {
   // Inicializar preview correctamente: solo usar currentImage si es una URL válida
   const getInitialPreview = () => {
-    if (currentImage && typeof currentImage === 'string' && currentImage.trim() !== '' && !currentImage.includes('unsplash.com')) {
+    if (currentImage && 
+        typeof currentImage === 'string' && 
+        currentImage.trim() !== '' && 
+        !currentImage.includes('unsplash.com')) {
       return currentImage.trim()
     }
     return null
@@ -31,10 +34,10 @@ export function ImageUpload({
   const [preview, setPreview] = useState<string | null>(getInitialPreview())
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
+  
   // Log inicial cuando el componente se monta
   useEffect(() => {
-    console.log('🖼️ ImageUpload montado/actualizado:', {
+    console.log('🖼️ ImageUpload montado:', {
       productId,
       productName,
       currentImage,
@@ -45,6 +48,7 @@ export function ImageUpload({
       previewInicial: getInitialPreview()
     })
   }, [])
+
 
   // Actualizar preview cuando currentImage cambie
   // IMPORTANTE: Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash

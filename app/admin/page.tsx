@@ -171,14 +171,15 @@ export default function AdminPage() {
             }
             
             // Log para debug de productos específicos
-            if (p.nombre && p.nombre.includes('ACEITUNA NEGRA N 00 BALDE')) {
+            if (p.nombre && (p.nombre.includes('ACEITUNA NEGRA N 00 BALDE') || p.nombre.includes('ACEITUNA VERDE N 0 X 2 KG'))) {
               console.log('🔍 Mapeando producto al recargar:', {
                 nombre: p.nombre,
                 imagenRaw: p.imagen,
                 imagenDeBD: imagenDeBD,
                 imagenParaMostrar: imagenParaMostrar,
                 esSupabase: imagenDeBD && imagenDeBD.includes('supabase.co'),
-                esUnsplash: imagenParaMostrar.includes('unsplash.com')
+                esUnsplash: imagenParaMostrar.includes('unsplash.com'),
+                imagenOriginalEnObjeto: imagenDeBD // Para verificar que se guarda correctamente
               })
             }
             
@@ -392,17 +393,33 @@ export default function AdminPage() {
         esUnsplash: imagenParaEditar && typeof imagenParaEditar === 'string' && imagenParaEditar.includes('unsplash.com')
       })
       setProductoEditando(producto)
+      
+      // CRÍTICO: Asegurarse de que la imagen se pase correctamente al formulario
+      // Si imagenParaEditar es de Supabase, usarla; si es null o Unsplash, usar string vacío
+      let imagenParaFormulario = ''
+      if (imagenParaEditar && 
+          typeof imagenParaEditar === 'string' && 
+          imagenParaEditar.trim() !== '' && 
+          !imagenParaEditar.includes('unsplash.com')) {
+        imagenParaFormulario = imagenParaEditar.trim()
+      }
+      
+      console.log('✅ FormProducto actualizado con imagen:', {
+        imagenParaEditar: imagenParaEditar,
+        imagenParaFormulario: imagenParaFormulario,
+        esSupabase: imagenParaFormulario.includes('supabase.co')
+      })
+      
       setFormProducto({
         nombre: producto.nombre,
         categoria: producto.categoria,
         precio: producto.precio.toString(),
         stock: producto.stock.toString(),
-        // IMPORTANTE: Usar imagenOriginal si existe, para evitar usar imagen por defecto de Unsplash
-        imagen: imagenParaEditar && !imagenParaEditar.includes('unsplash.com') ? imagenParaEditar : '',
+        // CRÍTICO: Pasar la imagen de Supabase si existe, sino string vacío
+        imagen: imagenParaFormulario,
         descripcion: producto.descripcion || "",
         unidad: producto.unidad || "",
       })
-      console.log('✅ FormProducto actualizado con imagen:', imagenParaEditar)
     } else {
       setProductoEditando(null)
       setFormProducto({
