@@ -122,9 +122,13 @@ export default function AdminPage() {
   useEffect(() => {
     const cargarProductos = async () => {
       try {
-        const response = await fetch('/api/products')
+        // Agregar timestamp para evitar cache del navegador
+        const response = await fetch(`/api/products?t=${Date.now()}`, {
+          cache: 'no-store',
+        })
         if (response.ok) {
           const productosData = await response.json()
+          console.log('📥 Productos cargados desde BD:', productosData.length)
           // Convertir el formato de la base de datos al formato esperado por el componente
           const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
             // Usar la imagen de la BD si existe, de lo contrario usar la por defecto
@@ -132,10 +136,14 @@ export default function AdminPage() {
               ? p.imagen 
               : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
-            console.log(`📦 Cargando producto ${p.nombre}:`, {
-              imagenBD: p.imagen,
-              imagenFinal: imagenFinal
-            })
+            // Log solo para productos con imágenes de Supabase para no saturar la consola
+            if (p.imagen && p.imagen.includes('supabase.co')) {
+              console.log(`📦 Cargando producto ${p.nombre}:`, {
+                imagenBD: p.imagen,
+                imagenFinal: imagenFinal,
+                tieneImagen: !!p.imagen
+              })
+            }
             
             return {
               id: index + 1, // Usar índice como ID numérico para compatibilidad
@@ -148,6 +156,20 @@ export default function AdminPage() {
               unidad: p.unidad || "",
             }
           })
+          // Verificar productos con imágenes de Supabase
+          const productosConImagenSupabase = productosFormateados.filter(p => 
+            p.imagen && p.imagen.includes('supabase.co')
+          )
+          console.log(`✅ Productos cargados: ${productosFormateados.length}`)
+          console.log(`🖼️ Productos con imagen Supabase: ${productosConImagenSupabase.length}`)
+          
+          if (productosConImagenSupabase.length > 0) {
+            console.log('📸 Primeros productos con imagen Supabase:')
+            productosConImagenSupabase.slice(0, 3).forEach(p => {
+              console.log(`   - ${p.nombre}: ${p.imagen}`)
+            })
+          }
+          
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
         } else {
