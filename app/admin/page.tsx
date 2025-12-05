@@ -136,12 +136,12 @@ export default function AdminPage() {
               ? p.imagen 
               : "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
-            // Log solo para productos con imágenes de Supabase para no saturar la consola
+            // Log detallado para productos con imágenes de Supabase
             if (p.imagen && p.imagen.includes('supabase.co')) {
-              console.log(`📦 Cargando producto ${p.nombre}:`, {
+              console.log(`✅ Producto con imagen Supabase: ${p.nombre}`, {
                 imagenBD: p.imagen,
                 imagenFinal: imagenFinal,
-                tieneImagen: !!p.imagen
+                index: index + 1
               })
             }
             
@@ -151,11 +151,15 @@ export default function AdminPage() {
               categoria: p.categoria,
               precio: p.precio,
               stock: p.stock || 0,
-              imagen: imagenFinal,
+              imagen: imagenFinal, // IMPORTANTE: Usar la imagen de la BD
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
           })
+          
+          // Verificar que las imágenes se cargaron correctamente
+          const productosConImagen = productosFormateados.filter(p => p.imagen.includes('supabase.co'))
+          console.log(`🖼️ Total productos con imagen Supabase cargados: ${productosConImagen.length}`)
           // Verificar productos con imágenes de Supabase
           const productosConImagenSupabase = productosFormateados.filter(p => 
             p.imagen && p.imagen.includes('supabase.co')
@@ -964,16 +968,23 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
-                    <div className="relative h-48 bg-gray-100">
-                      <Image
+                    <div className="relative h-48 bg-gray-100 overflow-hidden">
+                      <img
                         key={`img-${producto.nombre}-${producto.imagen}-${refreshKey}`}
                         src={producto.imagen}
                         alt={producto.nombre}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        unoptimized={true}
-                        priority={false}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          console.error('❌ Error al cargar imagen:', producto.nombre, producto.imagen)
+                          // Si falla, usar imagen por defecto
+                          e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+                        }}
+                        onLoad={() => {
+                          if (producto.imagen?.includes('supabase.co')) {
+                            console.log('✅ Imagen cargada:', producto.nombre, producto.imagen)
+                          }
+                        }}
                       />
                     </div>
                     <CardHeader>
