@@ -117,86 +117,40 @@ export default function AdminPage() {
     telefono: "",
   })
 
-  // Cargar datos desde localStorage al montar
+  // Cargar productos desde la base de datos
   useEffect(() => {
-    const productosGuardados = localStorage.getItem("admin_productos")
-    const pedidosGuardados = localStorage.getItem("admin_pedidos")
-    const clientesGuardados = localStorage.getItem("admin_clientes")
-
-    if (productosGuardados) {
-      const productosData = JSON.parse(productosGuardados)
-      setProductos(productosData)
-      setProductosFiltrados(productosData)
-    } else {
-      // Datos iniciales
-      const productosIniciales: Producto[] = [
-        {
-          id: 1,
-          nombre: "Harina 0000",
-          categoria: "Harinas",
-          precio: 15000,
-          stock: 45,
-          imagen: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
-          descripcion: "Harina de trigo 0000 para panadería",
-          unidad: "bolsa 25kg",
-        },
-        {
-          id: 2,
-          nombre: "Azúcar Refinada",
-          categoria: "Azúcares",
-          precio: 8500,
-          stock: 120,
-          imagen: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=200&h=200&fit=crop",
-          descripcion: "Azúcar refinada blanca",
-          unidad: "bolsa 50kg",
-        },
-        {
-          id: 3,
-          nombre: "Levadura Seca",
-          categoria: "Levaduras",
-          precio: 12000,
-          stock: 78,
-          imagen: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=200&h=200&fit=crop",
-          descripcion: "Levadura seca instantánea",
-          unidad: "paquete 500g",
-        },
-        {
-          id: 4,
-          nombre: "Chocolate Semi Amargo",
-          categoria: "Chocolates",
-          precio: 18500,
-          stock: 32,
-          imagen: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=200&h=200&fit=crop",
-          descripcion: "Chocolate semi amargo para confitería",
-          unidad: "bolsa 5kg",
-        },
-        {
-          id: 5,
-          nombre: "Nueces Peladas",
-          categoria: "Frutas Secas",
-          precio: 22000,
-          stock: 15,
-          imagen: "https://images.unsplash.com/photo-1584270354949-c26b0d5b4a0c?w=200&h=200&fit=crop",
-          descripcion: "Nueces peladas premium",
-          unidad: "bolsa 1kg",
-        },
-        {
-          id: 6,
-          nombre: "Manteca",
-          categoria: "Grasas",
-          precio: 14500,
-          stock: 67,
-          imagen: "https://images.unsplash.com/photo-1474979266404-7eaacb8cc273?w=200&h=200&fit=crop",
-          descripcion: "Manteca para panadería",
-          unidad: "bolsa 5kg",
-        },
-      ]
-      setProductos(productosIniciales)
-      setProductosFiltrados(productosIniciales)
-      localStorage.setItem("admin_productos", JSON.stringify(productosIniciales))
+    const cargarProductos = async () => {
+      try {
+        const response = await fetch('/api/products')
+        if (response.ok) {
+          const productosData = await response.json()
+          // Convertir el formato de la base de datos al formato esperado por el componente
+          const productosFormateados: Producto[] = productosData.map((p: any, index: number) => ({
+            id: index + 1, // Usar índice como ID numérico para compatibilidad
+            nombre: p.nombre,
+            categoria: p.categoria,
+            precio: p.precio,
+            stock: p.stock || 0,
+            imagen: p.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop",
+            descripcion: p.descripcion || "",
+            unidad: p.unidad || "",
+          }))
+          setProductos(productosFormateados)
+          setProductosFiltrados(productosFormateados)
+        } else {
+          console.error('Error al cargar productos:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error al cargar productos:', error)
+      }
     }
 
-    // Cargar pedidos primero
+    cargarProductos()
+
+    // Cargar pedidos desde localStorage
+    const pedidosGuardados = localStorage.getItem("admin_pedidos")
+    const clientesGuardados = localStorage.getItem("admin_clientes")
+    
     let pedidosData: Pedido[] = []
     if (pedidosGuardados) {
       pedidosData = JSON.parse(pedidosGuardados)
