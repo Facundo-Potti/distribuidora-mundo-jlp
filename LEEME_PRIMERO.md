@@ -122,18 +122,32 @@ git push
 3. **Copia esta URL completa**
 
 #### 3.4 Inicializar la base de datos
-Abre PowerShell y ejecuta (reemplaza con tu URL):
+
+**Opción A: Usar el script (Más fácil)**
+
+1. Abre el archivo `inicializar-db.ps1` en tu editor
+2. Reemplaza `TU-URL-AQUI` con tu URL real de Vercel
+3. Guarda el archivo
+4. Abre PowerShell en la carpeta del proyecto
+5. Ejecuta:
+   ```powershell
+   .\inicializar-db.ps1
+   ```
+
+**Opción B: Comando directo (Una línea)**
+
+Abre PowerShell y ejecuta (reemplaza `TU-URL-AQUI` con tu URL):
 
 ```powershell
-$url = "https://TU-URL-AQUI.vercel.app/api/admin/init-db"
-Invoke-RestMethod -Uri $url -Method Post
+Invoke-RestMethod -Uri "https://TU-URL-AQUI.vercel.app/api/admin/init-db" -Method Post
 ```
 
 **Ejemplo:**
 ```powershell
-$url = "https://distribuidora-mundo-jlp-xxxxx.vercel.app/api/admin/init-db"
-Invoke-RestMethod -Uri $url -Method Post
+Invoke-RestMethod -Uri "https://distribuidora-mundo-jlp-xxxxx.vercel.app/api/admin/init-db" -Method Post
 ```
+
+⚠️ **IMPORTANTE:** Todo debe estar en UNA SOLA LÍNEA. No copies varias líneas.
 
 Si funciona, verás un mensaje como:
 ```json

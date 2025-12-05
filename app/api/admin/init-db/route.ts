@@ -10,6 +10,26 @@ import * as bcrypt from "bcryptjs"
  * 
  * IMPORTANTE: Después de usar esta ruta, elimínala o protégela con autenticación
  */
+// Permitir GET también para facilitar las pruebas desde el navegador
+export async function GET(request: Request) {
+  // Verificar si hay un parámetro de confirmación
+  const { searchParams } = new URL(request.url)
+  const confirm = searchParams.get('confirm')
+  
+  if (confirm !== 'yes') {
+    return NextResponse.json(
+      { 
+        error: "Se requiere confirmación",
+        message: "Para inicializar la base de datos, agrega ?confirm=yes a la URL o usa POST"
+      },
+      { status: 400 }
+    )
+  }
+  
+  // Usar la misma lógica que POST
+  return POST(request)
+}
+
 export async function POST(request: Request) {
   try {
     // Verificar si ya hay usuarios
