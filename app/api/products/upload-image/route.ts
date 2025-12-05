@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +12,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
+      )
+    }
+
+    // Verificar que Supabase esté configurado
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        { error: 'Supabase no está configurado. Por favor, configura las variables de entorno.' },
+        { status: 500 }
       )
     }
 
@@ -46,12 +52,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear directorio si no existe
-    const uploadDir = join(process.cwd(), 'public', 'productos')
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
-
     // Generar nombre único para el archivo
     const timestamp = Date.now()
     const extension = file.name.split('.').pop()
@@ -59,15 +59,32 @@ export async function POST(request: NextRequest) {
       ? `producto-${productId}-${timestamp}.${extension}`
       : `producto-${timestamp}.${extension}`
     
-    const filePath = join(uploadDir, fileName)
-
-    // Convertir File a Buffer y guardar
+    // Convertir File a Buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
 
-    // Retornar la URL de la imagen
-    const imageUrl = `/productos/${fileName}`
+    // Subir a Supabase Storage
+    const { data, error: uploadError } = await supabaseAdmin.storage
+      .from('productos')
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: false, // No sobrescribir si existe
+      })
+
+    if (uploadError) {
+      console.error('Error al subir a Supabase:', uploadError)
+      return NextResponse.json(
+        { error: 'Error al subir la imagen: ' + uploadError.message },
+        { status: 500 }
+      )
+    }
+
+    // Obtener URL pública de la imagen
+    const { data: urlData } = supabaseAdmin.storage
+      .from('productos')
+      .getPublicUrl(fileName)
+
+    const imageUrl = urlData.publicUrl
 
     return NextResponse.json({
       success: true,
