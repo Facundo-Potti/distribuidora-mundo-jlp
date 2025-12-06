@@ -24,73 +24,39 @@ export function ImageUpload({
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Actualizar preview cuando currentImage cambie (solo si no hay una subida en progreso)
-  // Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash
+  // Actualizar preview cuando currentImage cambie (solo imágenes de Supabase)
   useEffect(() => {
-    // No actualizar si hay una subida en progreso (para evitar conflictos)
-    if (uploading) {
-      return
-    }
-    
-    console.log('🔄 ImageUpload - currentImage cambió:', {
-      currentImage,
-      tipo: typeof currentImage,
-      esString: typeof currentImage === 'string',
-      tieneContenido: currentImage && typeof currentImage === 'string' && currentImage.trim() !== '',
-      esSupabase: currentImage && typeof currentImage === 'string' && currentImage.includes('supabase.co'),
-      esUnsplash: currentImage && typeof currentImage === 'string' && currentImage.includes('unsplash.com')
-    })
+    if (uploading) return // No actualizar durante subida
     
     if (
       currentImage && 
       typeof currentImage === 'string' && 
       currentImage.trim() !== '' &&
-      !currentImage.includes('unsplash.com')
+      currentImage.includes('supabase.co')
     ) {
-      // Solo actualizar si es diferente del preview actual
-      setPreview(prev => {
-        const newPreview = currentImage.trim()
-        if (prev === newPreview) {
-          console.log('⏭️ Preview ya está actualizado')
-          return prev
-        }
-        console.log('✅ Estableciendo preview desde currentImage:', newPreview)
-        return newPreview
-      })
+      setPreview(currentImage.trim())
     } else if (!currentImage || (typeof currentImage === 'string' && currentImage.trim() === '')) {
-      // Solo limpiar si realmente no hay imagen y el preview no es una imagen subida
+      // Solo limpiar si no hay imagen y el preview no es una imagen subida
       setPreview(prev => {
-        if (prev && (prev.includes('supabase.co') || prev.startsWith('data:'))) {
-          // Mantener el preview si es una imagen válida
-          return prev
+        if (prev && prev.includes('supabase.co')) {
+          return prev // Mantener imagen de Supabase
         }
-        console.log('❌ No hay imagen válida, limpiando preview')
         return null
       })
     }
   }, [currentImage, uploading])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('📁 handleFileSelect llamado', e.target.files)
     const file = e.target.files?.[0]
     if (!file) {
-      console.log('❌ No se seleccionó ningún archivo')
-      // Resetear el input si no hay archivo seleccionado
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
       return
     }
 
-    console.log('📄 Archivo seleccionado:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    })
-
     // Validar tipo
     if (!file.type.startsWith('image/')) {
-      console.error('❌ Tipo de archivo inválido:', file.type)
       setError('Por favor selecciona un archivo de imagen')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -98,10 +64,9 @@ export function ImageUpload({
       return
     }
 
-    // Validar tamaño (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      console.error('❌ Archivo demasiado grande:', file.size)
-      setError('La imagen es demasiado grande. Máximo 5MB')
+    // Validar tamaño (3MB máximo para más velocidad)
+    if (file.size > 3 * 1024 * 1024) {
+      setError('La imagen es demasiado grande. Máximo 3MB')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -110,25 +75,19 @@ export function ImageUpload({
 
     setError(null)
 
-    // Crear preview inmediatamente
+    // Crear preview rápido
     const reader = new FileReader()
     reader.onloadend = () => {
-      console.log('✅ Preview creado')
       setPreview(reader.result as string)
-    }
-    reader.onerror = () => {
-      console.error('❌ Error al leer el archivo')
-      setError('Error al leer el archivo')
     }
     reader.readAsDataURL(file)
 
-    // Subir archivo
-    console.log('🚀 Iniciando subida de archivo')
+    // Subir inmediatamente
     uploadFile(file)
   }
 
-  // Comprimir imagen antes de subir (más agresivo para cargar más rápido)
-  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<File> => {
+  // Comprimir imagen antes de subir (más rápido, menos calidad)
+  const compressImage = (file: File, maxWidth: number = 600, quality: number = 0.6): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -185,19 +144,17 @@ export function ImageUpload({
     setError(null)
 
     try {
-      // Comprimir imagen antes de subir (máximo 800px de ancho, calidad 70% para cargar más rápido)
-      console.log('🗜️ Comprimiendo imagen...', { 
-        tamañoOriginal: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        tipo: file.type 
-      })
-      
+      // Comprimir imagen rápidamente (máximo 600px, calidad 60% para máxima velocidad)
       let fileToUpload = file
-      try {
-        fileToUpload = await compressImage(file, 800, 0.7)
-      } catch (compressError) {
-        console.warn('⚠️ No se pudo comprimir la imagen, subiendo original:', compressError)
-        // Si falla la compresión, subir el archivo original
-        fileToUpload = file
+      
+      // Solo comprimir si el archivo es mayor a 500KB
+      if (file.size > 500 * 1024) {
+        try {
+          fileToUpload = await compressImage(file, 600, 0.6)
+        } catch (compressError) {
+          console.warn('⚠️ No se pudo comprimir, subiendo original')
+          fileToUpload = file
+        }
       }
 
       const formData = new FormData()
@@ -206,50 +163,27 @@ export function ImageUpload({
         formData.append('productId', productId)
       }
 
-      console.log('🚀 Subiendo imagen comprimida...', { 
-        fileName: fileToUpload.name, 
-        size: `${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`, 
-        type: fileToUpload.type 
-      })
-
       const response = await fetch('/api/products/upload-image', {
         method: 'POST',
         body: formData,
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        console.error('Error en respuesta:', data)
-        throw new Error(data.error || 'Error al subir la imagen')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al subir la imagen')
       }
 
-      console.log('✅ Imagen subida exitosamente:', data.url)
-      
-      // Actualizar preview con la URL de Supabase
+      const data = await response.json()
       const imageUrl = data.url
-      console.log('🖼️ Estableciendo preview con URL de Supabase:', imageUrl)
       
-      // CRÍTICO: Actualizar preview y llamar al callback inmediatamente
+      if (!imageUrl || !imageUrl.includes('supabase.co')) {
+        throw new Error('URL de imagen inválida recibida del servidor')
+      }
+      
+      // Actualizar preview y formulario inmediatamente
       setPreview(imageUrl)
-      
-      // Llamar al callback para actualizar el formulario con la URL de la imagen
-      console.log('📤 Llamando onImageUploaded con URL de Supabase:', imageUrl)
       onImageUploaded(imageUrl)
       setError(null)
-      
-      // Verificar que el preview se mantenga
-      setTimeout(() => {
-        console.log('🔍 Verificando preview después de subir:', {
-          previewActual: preview,
-          imageUrlEsperada: imageUrl,
-          sonIguales: preview === imageUrl
-        })
-        if (preview !== imageUrl) {
-          console.log('🔄 Forzando actualización del preview')
-          setPreview(imageUrl)
-        }
-      }, 300)
     } catch (err: any) {
       console.error('Error al subir imagen:', err)
       const errorMessage = err.message || 'Error al subir la imagen. Verifica que Supabase Storage esté configurado.'
@@ -316,13 +250,7 @@ export function ImageUpload({
             disabled={uploading}
             className="w-full cursor-pointer"
             onClick={() => {
-              console.log('🖱️ Click en botón de subir imagen')
-              if (fileInputRef.current) {
-                console.log('📂 Abriendo selector de archivos')
-                fileInputRef.current.click()
-              } else {
-                console.error('❌ fileInputRef.current es null')
-              }
+              fileInputRef.current?.click()
             }}
           >
             {uploading ? (
