@@ -127,8 +127,8 @@ export function ImageUpload({
     uploadFile(file)
   }
 
-  // Comprimir imagen antes de subir
-  const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> => {
+  // Comprimir imagen antes de subir (más agresivo para cargar más rápido)
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -185,7 +185,7 @@ export function ImageUpload({
     setError(null)
 
     try {
-      // Comprimir imagen antes de subir (máximo 1200px de ancho, calidad 80%)
+      // Comprimir imagen antes de subir (máximo 800px de ancho, calidad 70% para cargar más rápido)
       console.log('🗜️ Comprimiendo imagen...', { 
         tamañoOriginal: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
         tipo: file.type 
@@ -193,7 +193,7 @@ export function ImageUpload({
       
       let fileToUpload = file
       try {
-        fileToUpload = await compressImage(file, 1200, 0.8)
+        fileToUpload = await compressImage(file, 800, 0.7)
       } catch (compressError) {
         console.warn('⚠️ No se pudo comprimir la imagen, subiendo original:', compressError)
         // Si falla la compresión, subir el archivo original
