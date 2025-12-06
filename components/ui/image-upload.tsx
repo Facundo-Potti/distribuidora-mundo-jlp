@@ -24,9 +24,14 @@ export function ImageUpload({
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Actualizar preview cuando currentImage cambie
+  // Actualizar preview cuando currentImage cambie (solo si no hay una subida en progreso)
   // Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash
   useEffect(() => {
+    // No actualizar si hay una subida en progreso (para evitar conflictos)
+    if (uploading) {
+      return
+    }
+    
     console.log('🔄 ImageUpload - currentImage cambió:', {
       currentImage,
       tipo: typeof currentImage,
@@ -42,13 +47,28 @@ export function ImageUpload({
       currentImage.trim() !== '' &&
       !currentImage.includes('unsplash.com')
     ) {
-      console.log('✅ Estableciendo preview:', currentImage.trim())
-      setPreview(currentImage.trim())
-    } else {
-      console.log('❌ No hay imagen válida, limpiando preview')
-      setPreview(null)
+      // Solo actualizar si es diferente del preview actual
+      setPreview(prev => {
+        const newPreview = currentImage.trim()
+        if (prev === newPreview) {
+          console.log('⏭️ Preview ya está actualizado')
+          return prev
+        }
+        console.log('✅ Estableciendo preview desde currentImage:', newPreview)
+        return newPreview
+      })
+    } else if (!currentImage || (typeof currentImage === 'string' && currentImage.trim() === '')) {
+      // Solo limpiar si realmente no hay imagen y el preview no es una imagen subida
+      setPreview(prev => {
+        if (prev && (prev.includes('supabase.co') || prev.startsWith('data:'))) {
+          // Mantener el preview si es una imagen válida
+          return prev
+        }
+        console.log('❌ No hay imagen válida, limpiando preview')
+        return null
+      })
     }
-  }, [currentImage])
+  }, [currentImage, uploading])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('📁 handleFileSelect llamado', e.target.files)
@@ -208,12 +228,23 @@ export function ImageUpload({
       
       // Actualizar preview con la URL de Supabase
       const imageUrl = data.url
+      console.log('🖼️ Estableciendo preview con URL de Supabase:', imageUrl)
+      
+      // Actualizar preview inmediatamente
       setPreview(imageUrl)
       
       // Llamar al callback para actualizar el formulario con la URL de la imagen
       console.log('📤 Llamando onImageUploaded con:', imageUrl)
       onImageUploaded(imageUrl)
       setError(null)
+      
+      // Asegurar que el preview se mantenga después de que termine la subida
+      setTimeout(() => {
+        if (preview !== imageUrl) {
+          console.log('🔄 Forzando actualización del preview')
+          setPreview(imageUrl)
+        }
+      }, 200)
     } catch (err: any) {
       console.error('Error al subir imagen:', err)
       const errorMessage = err.message || 'Error al subir la imagen. Verifica que Supabase Storage esté configurado.'
