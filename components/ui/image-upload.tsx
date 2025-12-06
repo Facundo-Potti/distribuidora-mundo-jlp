@@ -112,7 +112,7 @@ export function ImageUpload({
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (e) => {
-        const img = new Image()
+        const img = document.createElement('img') as HTMLImageElement
         img.onload = () => {
           const canvas = document.createElement('canvas')
           let width = img.width
