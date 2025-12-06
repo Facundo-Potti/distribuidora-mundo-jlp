@@ -985,7 +985,10 @@ export default function AdminPage() {
                           // Priorizar imagenOriginal (imagen guardada en BD)
                           // La imagen ya está comprimida al subir (máximo 800px, calidad 70%)
                           if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
-                            return producto.imagenOriginal
+                            // Agregar parámetros de caché para mejorar rendimiento
+                            const url = producto.imagenOriginal
+                            // Si no tiene parámetros, agregar timestamp para forzar recarga si es necesario
+                            return url.includes('?') ? url : `${url}?cache=1`
                           }
                           // Si no hay imagenOriginal, usar imagen (puede ser por defecto)
                           return producto.imagen
@@ -995,11 +998,14 @@ export default function AdminPage() {
                         loading="lazy"
                         decoding="async"
                         fetchPriority="low"
+                        width={400}
+                        height={300}
                         style={{ 
                           display: 'block', 
                           width: '100%', 
                           height: '100%',
-                          opacity: 0
+                          opacity: 0,
+                          objectFit: 'cover'
                         }}
                         onLoad={(e) => {
                           // Mostrar imagen cuando esté cargada
