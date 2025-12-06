@@ -974,23 +974,40 @@ export default function AdminPage() {
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
+                      {/* Placeholder mientras carga */}
+                      <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+                        <Upload className="w-8 h-8 text-gray-400" />
+                      </div>
                       <img
                         key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
                         src={(() => {
                           // Priorizar imagenOriginal (imagen guardada en BD)
+                          // La imagen ya está comprimida al subir (máximo 1200px, calidad 80%)
                           if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
-                            // Agregar timestamp para evitar caché
-                            return producto.imagenOriginal.includes('?')
-                              ? `${producto.imagenOriginal}&t=${Date.now()}`
-                              : `${producto.imagenOriginal}?t=${Date.now()}`
+                            return producto.imagenOriginal
                           }
                           // Si no hay imagenOriginal, usar imagen (puede ser por defecto)
                           return producto.imagen
                         })()}
                         alt={producto.nombre}
-                        className="absolute inset-0 w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
                         loading="lazy"
-                        style={{ display: 'block', width: '100%', height: '100%' }}
+                        decoding="async"
+                        style={{ 
+                          display: 'block', 
+                          width: '100%', 
+                          height: '100%',
+                          opacity: 0
+                        }}
+                        onLoad={(e) => {
+                          // Mostrar imagen cuando esté cargada
+                          e.currentTarget.style.opacity = '1'
+                          // Ocultar placeholder
+                          const placeholder = e.currentTarget.previousElementSibling as HTMLElement
+                          if (placeholder) {
+                            placeholder.style.display = 'none'
+                          }
+                        }}
                         onError={(e) => {
                           console.error('❌ Error al cargar imagen:', {
                             nombre: producto.nombre,
@@ -999,15 +1016,7 @@ export default function AdminPage() {
                           })
                           // Si falla la carga, usar imagen por defecto solo si no es de Supabase
                           if (!producto.imagenOriginal || !producto.imagenOriginal.includes('supabase.co')) {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-                          }
-                        }}
-                        onLoad={() => {
-                          if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
-                            console.log('✅ Imagen cargada correctamente:', {
-                              nombre: producto.nombre,
-                              imagen: producto.imagenOriginal
-                            })
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
                           }
                         }}
                       />

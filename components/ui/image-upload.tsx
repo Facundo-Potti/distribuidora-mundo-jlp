@@ -51,8 +51,10 @@ export function ImageUpload({
   }, [currentImage])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📁 handleFileSelect llamado', e.target.files)
     const file = e.target.files?.[0]
     if (!file) {
+      console.log('❌ No se seleccionó ningún archivo')
       // Resetear el input si no hay archivo seleccionado
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -60,8 +62,15 @@ export function ImageUpload({
       return
     }
 
+    console.log('📄 Archivo seleccionado:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    })
+
     // Validar tipo
     if (!file.type.startsWith('image/')) {
+      console.error('❌ Tipo de archivo inválido:', file.type)
       setError('Por favor selecciona un archivo de imagen')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -71,6 +80,7 @@ export function ImageUpload({
 
     // Validar tamaño (5MB)
     if (file.size > 5 * 1024 * 1024) {
+      console.error('❌ Archivo demasiado grande:', file.size)
       setError('La imagen es demasiado grande. Máximo 5MB')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -83,12 +93,71 @@ export function ImageUpload({
     // Crear preview inmediatamente
     const reader = new FileReader()
     reader.onloadend = () => {
+      console.log('✅ Preview creado')
       setPreview(reader.result as string)
+    }
+    reader.onerror = () => {
+      console.error('❌ Error al leer el archivo')
+      setError('Error al leer el archivo')
     }
     reader.readAsDataURL(file)
 
     // Subir archivo
+    console.log('🚀 Iniciando subida de archivo')
     uploadFile(file)
+  }
+
+  // Comprimir imagen antes de subir
+  const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          // Redimensionar si es muy grande
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width
+            width = maxWidth
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('No se pudo obtener el contexto del canvas'))
+            return
+          }
+
+          ctx.drawImage(img, 0, 0, width, height)
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Error al comprimir la imagen'))
+                return
+              }
+              const compressedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now(),
+              })
+              console.log(`📦 Imagen comprimida: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(blob.size / 1024 / 1024).toFixed(2)}MB`)
+              resolve(compressedFile)
+            },
+            file.type,
+            quality
+          )
+        }
+        img.onerror = () => reject(new Error('Error al cargar la imagen'))
+        img.src = e.target?.result as string
+      }
+      reader.onerror = () => reject(new Error('Error al leer el archivo'))
+      reader.readAsDataURL(file)
+    })
   }
 
   const uploadFile = async (file: File) => {
@@ -96,13 +165,32 @@ export function ImageUpload({
     setError(null)
 
     try {
+      // Comprimir imagen antes de subir (máximo 1200px de ancho, calidad 80%)
+      console.log('🗜️ Comprimiendo imagen...', { 
+        tamañoOriginal: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        tipo: file.type 
+      })
+      
+      let fileToUpload = file
+      try {
+        fileToUpload = await compressImage(file, 1200, 0.8)
+      } catch (compressError) {
+        console.warn('⚠️ No se pudo comprimir la imagen, subiendo original:', compressError)
+        // Si falla la compresión, subir el archivo original
+        fileToUpload = file
+      }
+
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', fileToUpload)
       if (productId) {
         formData.append('productId', productId)
       }
 
-      console.log('Subiendo imagen...', { fileName: file.name, size: file.size, type: file.type })
+      console.log('🚀 Subiendo imagen comprimida...', { 
+        fileName: fileToUpload.name, 
+        size: `${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`, 
+        type: fileToUpload.type 
+      })
 
       const response = await fetch('/api/products/upload-image', {
         method: 'POST',
@@ -177,7 +265,7 @@ export function ImageUpload({
         </div>
 
         <div className="flex-1">
-          <Input
+          <input
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -186,29 +274,33 @@ export function ImageUpload({
             className="hidden"
             id={`image-upload-${productId || 'new'}`}
           />
-          <label htmlFor={`image-upload-${productId || 'new'}`}>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={uploading}
-              className="w-full cursor-pointer"
-              asChild
-            >
-              <span className="flex items-center justify-center">
-                {uploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Subiendo...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    {preview ? 'Cambiar imagen' : 'Subir imagen'}
-                  </>
-                )}
-              </span>
-            </Button>
-          </label>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={uploading}
+            className="w-full cursor-pointer"
+            onClick={() => {
+              console.log('🖱️ Click en botón de subir imagen')
+              if (fileInputRef.current) {
+                console.log('📂 Abriendo selector de archivos')
+                fileInputRef.current.click()
+              } else {
+                console.error('❌ fileInputRef.current es null')
+              }
+            }}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Subiendo...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                {preview ? 'Cambiar imagen' : 'Subir imagen'}
+              </>
+            )}
+          </Button>
           <p className="text-xs text-gray-500 mt-2">
             JPG, PNG o WEBP. Máximo 5MB
           </p>
