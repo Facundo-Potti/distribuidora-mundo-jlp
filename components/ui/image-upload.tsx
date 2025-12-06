@@ -230,21 +230,26 @@ export function ImageUpload({
       const imageUrl = data.url
       console.log('🖼️ Estableciendo preview con URL de Supabase:', imageUrl)
       
-      // Actualizar preview inmediatamente
+      // CRÍTICO: Actualizar preview y llamar al callback inmediatamente
       setPreview(imageUrl)
       
       // Llamar al callback para actualizar el formulario con la URL de la imagen
-      console.log('📤 Llamando onImageUploaded con:', imageUrl)
+      console.log('📤 Llamando onImageUploaded con URL de Supabase:', imageUrl)
       onImageUploaded(imageUrl)
       setError(null)
       
-      // Asegurar que el preview se mantenga después de que termine la subida
+      // Verificar que el preview se mantenga
       setTimeout(() => {
+        console.log('🔍 Verificando preview después de subir:', {
+          previewActual: preview,
+          imageUrlEsperada: imageUrl,
+          sonIguales: preview === imageUrl
+        })
         if (preview !== imageUrl) {
           console.log('🔄 Forzando actualización del preview')
           setPreview(imageUrl)
         }
-      }, 200)
+      }, 300)
     } catch (err: any) {
       console.error('Error al subir imagen:', err)
       const errorMessage = err.message || 'Error al subir la imagen. Verifica que Supabase Storage esté configurado.'

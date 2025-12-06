@@ -407,12 +407,27 @@ export default function AdminPage() {
       const method = productoEditando ? 'PUT' : 'POST'
       
       // Preparar datos: imagen debe ser null si está vacía, sino la URL completa
+      // CRÍTICO: Verificar que la imagen no sea de Unsplash (imagen por defecto)
+      let imagenParaGuardar = null
+      if (formProducto.imagen && 
+          formProducto.imagen.trim() !== '' && 
+          !formProducto.imagen.includes('unsplash.com')) {
+        imagenParaGuardar = formProducto.imagen.trim()
+      }
+      
+      console.log('💾 Guardando producto con imagen:', {
+        imagenFormulario: formProducto.imagen,
+        imagenParaGuardar: imagenParaGuardar,
+        esSupabase: imagenParaGuardar && imagenParaGuardar.includes('supabase.co'),
+        esUnsplash: formProducto.imagen && formProducto.imagen.includes('unsplash.com')
+      })
+      
       const bodyData: any = {
         nombre: formProducto.nombre,
         categoria: formProducto.categoria,
         precio: formProducto.precio,
         stock: formProducto.stock,
-        imagen: formProducto.imagen && formProducto.imagen.trim() !== '' ? formProducto.imagen.trim() : null,
+        imagen: imagenParaGuardar,
         descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion.trim() : null,
         unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad.trim() : null,
       }
@@ -1311,13 +1326,28 @@ export default function AdminPage() {
                     imageUrl,
                     imageUrlType: typeof imageUrl,
                     imageUrlLength: imageUrl ? imageUrl.length : 0,
+                    esSupabase: imageUrl && imageUrl.includes('supabase.co'),
                     formProductoActual: formProducto
                   })
-                  setFormProducto(prev => {
-                    const nuevo = { ...prev, imagen: imageUrl }
-                    console.log('📝 Nuevo formProducto:', nuevo)
-                    return nuevo
-                  })
+                  
+                  // CRÍTICO: Actualizar el formulario con la URL de Supabase
+                  // Solo si es una URL válida de Supabase (no Unsplash)
+                  if (imageUrl && imageUrl.includes('supabase.co')) {
+                    setFormProducto(prev => {
+                      const nuevo = { ...prev, imagen: imageUrl }
+                      console.log('✅ FormProducto actualizado con imagen Supabase:', nuevo)
+                      return nuevo
+                    })
+                  } else if (imageUrl === '') {
+                    // Si se eliminó la imagen, limpiar el campo
+                    setFormProducto(prev => {
+                      const nuevo = { ...prev, imagen: '' }
+                      console.log('🗑️ FormProducto actualizado (imagen eliminada):', nuevo)
+                      return nuevo
+                    })
+                  } else {
+                    console.warn('⚠️ URL de imagen no válida:', imageUrl)
+                  }
                 }}
                 productId={productoEditando?.id.toString()}
                 productName={formProducto.nombre || 'producto'}
