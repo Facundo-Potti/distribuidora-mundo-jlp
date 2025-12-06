@@ -975,15 +975,15 @@ export default function AdminPage() {
                 {productosFiltrados.map((producto) => (
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
-                      {/* Placeholder mientras carga */}
-                      <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-gray-400" />
+                      {/* Placeholder mientras carga - más ligero */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-0">
+                        <div className="w-12 h-12 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
                       </div>
                       <img
                         key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
                         src={(() => {
                           // Priorizar imagenOriginal (imagen guardada en BD)
-                          // La imagen ya está comprimida al subir (máximo 1200px, calidad 80%)
+                          // La imagen ya está comprimida al subir (máximo 800px, calidad 70%)
                           if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
                             return producto.imagenOriginal
                           }
@@ -991,9 +991,10 @@ export default function AdminPage() {
                           return producto.imagen
                         })()}
                         alt={producto.nombre}
-                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
                         loading="lazy"
                         decoding="async"
+                        fetchPriority="low"
                         style={{ 
                           display: 'block', 
                           width: '100%', 
@@ -1006,7 +1007,10 @@ export default function AdminPage() {
                           // Ocultar placeholder
                           const placeholder = e.currentTarget.previousElementSibling as HTMLElement
                           if (placeholder) {
-                            placeholder.style.display = 'none'
+                            placeholder.style.opacity = '0'
+                            setTimeout(() => {
+                              placeholder.style.display = 'none'
+                            }, 200)
                           }
                         }}
                         onError={(e) => {
