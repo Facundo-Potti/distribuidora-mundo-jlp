@@ -38,7 +38,8 @@ import {
   Search,
   Filter,
   Download,
-  X
+  X,
+  Upload
 } from "lucide-react"
 import Image from "next/image"
 import { ImageUpload } from "@/components/ui/image-upload"
