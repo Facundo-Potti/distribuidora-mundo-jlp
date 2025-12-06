@@ -145,6 +145,14 @@ export default function AdminPage() {
             // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
             const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
+            // Log para productos con imágenes de Supabase
+            if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
+              console.log(`🖼️ Producto con imagen Supabase: ${p.nombre}`, {
+                imagenBD: imagenDeBD,
+                imagenParaMostrar: imagenParaMostrar
+              })
+            }
+            
             return {
               id: index + 1,
               nombre: p.nombre,
@@ -163,6 +171,14 @@ export default function AdminPage() {
           console.log(`✅ Productos cargados: ${productosFormateados.length}`)
           const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
           console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
+          
+          // Log de los primeros productos con imagen para verificar
+          if (productosConImagen.length > 0) {
+            console.log('📸 Primeros productos con imagen:', productosConImagen.slice(0, 3).map(p => ({
+              nombre: p.nombre,
+              imagenOriginal: p.imagenOriginal
+            })))
+          }
           
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
@@ -330,11 +346,25 @@ export default function AdminPage() {
   const abrirDialogProducto = (producto?: Producto) => {
     if (producto) {
       // Usar imagenOriginal si existe (imagen real de la BD), sino string vacío
-      const imagenParaFormulario = producto.imagenOriginal && 
-        typeof producto.imagenOriginal === 'string' && 
-        producto.imagenOriginal.trim() !== '' 
-        ? producto.imagenOriginal.trim() 
-        : ''
+      // También verificar si imagen tiene una URL de Supabase (por si imagenOriginal no está establecida)
+      let imagenParaFormulario = ''
+      if (producto.imagenOriginal && 
+          typeof producto.imagenOriginal === 'string' && 
+          producto.imagenOriginal.trim() !== '') {
+        imagenParaFormulario = producto.imagenOriginal.trim()
+      } else if (producto.imagen && 
+                 typeof producto.imagen === 'string' && 
+                 producto.imagen.includes('supabase.co')) {
+        // Si imagenOriginal no está pero imagen es de Supabase, usarla
+        imagenParaFormulario = producto.imagen.trim()
+      }
+      
+      console.log('📝 Abriendo diálogo de edición:', {
+        nombre: producto.nombre,
+        imagenOriginal: producto.imagenOriginal,
+        imagen: producto.imagen,
+        imagenParaFormulario: imagenParaFormulario
+      })
       
       setProductoEditando(producto)
       setFormProducto({
@@ -406,59 +436,62 @@ export default function AdminPage() {
 
       const productoGuardado = await response.json()
       
-      // Extraer la imagen de la BD
-      const imagenDeBD = productoGuardado.imagen && 
-        typeof productoGuardado.imagen === 'string' && 
-        productoGuardado.imagen.trim() !== ''
-        ? productoGuardado.imagen.trim()
-        : null
-      
-      // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
-      const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-      
-      const nuevoProducto: Producto = {
-        id: productoEditando ? productoEditando.id : Date.now(),
+      console.log('✅ Producto guardado en BD:', {
         nombre: productoGuardado.nombre,
-        categoria: productoGuardado.categoria,
-        precio: productoGuardado.precio,
-        stock: productoGuardado.stock,
-        imagen: imagenParaMostrar,
-        imagenOriginal: imagenDeBD,
-        descripcion: productoGuardado.descripcion || "",
-        unidad: productoGuardado.unidad || "",
-      }
+        imagen: productoGuardado.imagen,
+        imagenEsNull: productoGuardado.imagen === null,
+        imagenEsString: typeof productoGuardado.imagen === 'string'
+      })
 
-      // Actualizar estado local
-      let productosActualizados: Producto[]
-      if (productoEditando) {
-        productosActualizados = productos.map((p) => 
-          p.id === productoEditando.id ? nuevoProducto : p
-        )
-      } else {
-        productosActualizados = [...productos, nuevoProducto]
-      }
-      
-      setProductos(productosActualizados)
-      
-      // Actualizar productos filtrados
-      let filtrados = productosActualizados
-      if (busquedaProductos) {
-        filtrados = filtrados.filter(
-          (p) =>
-            p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
-            p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
-        )
-      }
-      if (categoriaFiltro) {
-        filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
-      }
-      setProductosFiltrados(filtrados)
-      
-      // Forzar re-render de imágenes
-      setRefreshKey(prev => prev + 1)
-
+      // Cerrar el diálogo primero
       setDialogProductoAbierto(false)
       setProductoEditando(null)
+
+      // Recargar productos desde la BD para asegurar que tenemos los datos más actualizados
+      const productosResponse = await fetch(`/api/products?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
+      
+      if (productosResponse.ok) {
+        const productosData = await productosResponse.json()
+        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
+            ? p.imagen.trim()
+            : null
+          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+          
+          return {
+            id: index + 1,
+            nombre: p.nombre,
+            categoria: p.categoria,
+            precio: p.precio,
+            stock: p.stock || 0,
+            imagen: imagenParaMostrar,
+            imagenOriginal: imagenDeBD,
+            descripcion: p.descripcion || "",
+            unidad: p.unidad || "",
+          }
+        })
+        
+        setProductos(productosFormateados)
+        
+        // Actualizar productos filtrados
+        let filtrados = productosFormateados
+        if (busquedaProductos) {
+          filtrados = filtrados.filter(
+            (p) =>
+              p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
+              p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
+          )
+        }
+        if (categoriaFiltro) {
+          filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
+        }
+        setProductosFiltrados(filtrados)
+        
+        // Forzar re-render de imágenes
+        setRefreshKey(prev => prev + 1)
+      }
     } catch (error: any) {
       console.error('Error al guardar producto:', error)
       alert('Error al guardar producto: ' + error.message)
@@ -942,16 +975,39 @@ export default function AdminPage() {
                   <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
                       <img
-                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}`}
-                        src={producto.imagen}
+                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
+                        src={(() => {
+                          // Priorizar imagenOriginal (imagen guardada en BD)
+                          if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
+                            // Agregar timestamp para evitar caché
+                            return producto.imagenOriginal.includes('?')
+                              ? `${producto.imagenOriginal}&t=${Date.now()}`
+                              : `${producto.imagenOriginal}?t=${Date.now()}`
+                          }
+                          // Si no hay imagenOriginal, usar imagen (puede ser por defecto)
+                          return producto.imagen
+                        })()}
                         alt={producto.nombre}
                         className="absolute inset-0 w-full h-full object-cover"
                         loading="lazy"
                         style={{ display: 'block', width: '100%', height: '100%' }}
                         onError={(e) => {
+                          console.error('❌ Error al cargar imagen:', {
+                            nombre: producto.nombre,
+                            imagenOriginal: producto.imagenOriginal,
+                            imagen: producto.imagen
+                          })
                           // Si falla la carga, usar imagen por defecto solo si no es de Supabase
                           if (!producto.imagenOriginal || !producto.imagenOriginal.includes('supabase.co')) {
                             e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+                          }
+                        }}
+                        onLoad={() => {
+                          if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
+                            console.log('✅ Imagen cargada correctamente:', {
+                              nombre: producto.nombre,
+                              imagen: producto.imagenOriginal
+                            })
                           }
                         }}
                       />
