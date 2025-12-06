@@ -27,14 +27,25 @@ export function ImageUpload({
   // Actualizar preview cuando currentImage cambie
   // Solo usar imágenes de Supabase, ignorar imágenes por defecto de Unsplash
   useEffect(() => {
+    console.log('🔄 ImageUpload - currentImage cambió:', {
+      currentImage,
+      tipo: typeof currentImage,
+      esString: typeof currentImage === 'string',
+      tieneContenido: currentImage && typeof currentImage === 'string' && currentImage.trim() !== '',
+      esSupabase: currentImage && typeof currentImage === 'string' && currentImage.includes('supabase.co'),
+      esUnsplash: currentImage && typeof currentImage === 'string' && currentImage.includes('unsplash.com')
+    })
+    
     if (
       currentImage && 
       typeof currentImage === 'string' && 
       currentImage.trim() !== '' &&
       !currentImage.includes('unsplash.com')
     ) {
+      console.log('✅ Estableciendo preview:', currentImage.trim())
       setPreview(currentImage.trim())
     } else {
+      console.log('❌ No hay imagen válida, limpiando preview')
       setPreview(null)
     }
   }, [currentImage])
@@ -106,9 +117,14 @@ export function ImageUpload({
       }
 
       console.log('✅ Imagen subida exitosamente:', data.url)
-      setPreview(data.url)
+      
+      // Actualizar preview con la URL de Supabase
+      const imageUrl = data.url
+      setPreview(imageUrl)
+      
       // Llamar al callback para actualizar el formulario con la URL de la imagen
-      onImageUploaded(data.url)
+      console.log('📤 Llamando onImageUploaded con:', imageUrl)
+      onImageUploaded(imageUrl)
       setError(null)
     } catch (err: any) {
       console.error('Error al subir imagen:', err)
@@ -134,16 +150,19 @@ export function ImageUpload({
         <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
           {preview ? (
             <>
-              <Image
+              <img
                 src={preview}
                 alt={productName}
-                fill
-                className="object-cover"
-                sizes="128px"
+                className="w-full h-full object-cover"
+                style={{ display: 'block' }}
+                onError={(e) => {
+                  console.error('Error al cargar preview:', preview)
+                  setPreview(null)
+                }}
               />
               <button
                 onClick={handleRemove}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors z-10"
                 type="button"
               >
                 <X className="w-4 h-4" />

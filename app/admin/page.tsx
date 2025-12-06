@@ -1287,8 +1287,17 @@ export default function AdminPage() {
               <ImageUpload
                 currentImage={formProducto.imagen}
                 onImageUploaded={(imageUrl) => {
-                  console.log('🖼️ Imagen subida, actualizando formulario:', imageUrl)
-                  setFormProducto({ ...formProducto, imagen: imageUrl })
+                  console.log('🖼️ Imagen subida, actualizando formulario:', {
+                    imageUrl,
+                    imageUrlType: typeof imageUrl,
+                    imageUrlLength: imageUrl ? imageUrl.length : 0,
+                    formProductoActual: formProducto
+                  })
+                  setFormProducto(prev => {
+                    const nuevo = { ...prev, imagen: imageUrl }
+                    console.log('📝 Nuevo formProducto:', nuevo)
+                    return nuevo
+                  })
                 }}
                 productId={productoEditando?.id.toString()}
                 productName={formProducto.nombre || 'producto'}
