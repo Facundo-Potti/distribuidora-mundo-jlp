@@ -65,32 +65,28 @@ export async function GET() {
     // Determinar qué productos devolver (en desarrollo, si no hay activos, devolver todos)
     let productosADevolver = products.length > 0 ? products : (process.env.NODE_ENV === 'development' ? allProducts : [])
     
-    // Filtrar duplicados: Si hay productos con el mismo nombre normalizado, tomar solo el más reciente (por updatedAt)
-    const productosUnicos = new Map<string, typeof productosADevolver[0]>()
+    // Ordenar por updatedAt descendente para que los más recientes estén primero
+    productosADevolver.sort((a, b) => {
+      if (a.updatedAt && b.updatedAt) {
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      }
+      if (a.updatedAt && !b.updatedAt) return -1
+      if (!a.updatedAt && b.updatedAt) return 1
+      return 0
+    })
     
+    // Si hay productos con el mismo nombre normalizado, tomar solo el primero (más reciente por updatedAt)
+    const productosUnicos = new Map<string, typeof productosADevolver[0]>()
     productosADevolver.forEach(p => {
       const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-      const existente = productosUnicos.get(nombreNormalizado)
-      
-      if (!existente) {
+      if (!productosUnicos.has(nombreNormalizado)) {
         productosUnicos.set(nombreNormalizado, p)
-      } else {
-        // Si ya existe uno, comparar updatedAt y quedarse con el más reciente
-        if (p.updatedAt && existente.updatedAt) {
-          const fechaP = new Date(p.updatedAt).getTime()
-          const fechaExistente = new Date(existente.updatedAt).getTime()
-          if (fechaP > fechaExistente) {
-            productosUnicos.set(nombreNormalizado, p)
-          }
-        } else if (p.updatedAt && !existente.updatedAt) {
-          productosUnicos.set(nombreNormalizado, p)
-        }
       }
     })
     
     productosADevolver = Array.from(productosUnicos.values())
     
-    console.log(`✅ Devolviendo ${productosADevolver.length} productos únicos (filtrados por nombre normalizado, más reciente por updatedAt)`)
+    console.log(`✅ Devolviendo ${productosADevolver.length} productos únicos (más reciente por nombre normalizado)`)
     
     // Agregar headers para evitar cache
     return NextResponse.json(productosADevolver, {

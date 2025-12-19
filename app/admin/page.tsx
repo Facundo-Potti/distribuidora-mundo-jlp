@@ -272,14 +272,14 @@ export default function AdminPage() {
           
           // Convertir el formato de la base de datos al formato esperado por el componente
           const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-            // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
+            // CRÍTICO: Usar EXACTAMENTE la imagen que viene de la BD, sin procesamiento adicional
+            // Si p.imagen es null, undefined, o vacío, usar null. Si tiene valor, usarlo tal cual.
             let imagenDeBD: string | null = null
             if (p.imagen !== null && 
                 p.imagen !== undefined && 
                 typeof p.imagen === 'string' && 
-              p.imagen.trim() !== '' &&
-              !p.imagen.includes('unsplash.com')) {
-            // Solo usar imágenes que no sean de Unsplash (imágenes guardadas)
+                p.imagen.trim() !== '') {
+              // Usar la imagen tal cual viene de la BD (puede ser Supabase o cualquier URL válida)
               imagenDeBD = p.imagen.trim()
             }
             
