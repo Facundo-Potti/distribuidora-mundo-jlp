@@ -43,14 +43,24 @@ export async function PUT(
       where: { nombre: nombreBusqueda },
     })
     
-    // Si no encuentra con búsqueda exacta, intentar búsqueda case-insensitive
+    // Si no encuentra con búsqueda exacta, intentar búsqueda case-insensitive y normalizada
     if (productosConMismoNombre.length === 0) {
-      console.warn('⚠️ No se encontró con búsqueda exacta, intentando case-insensitive...')
+      console.warn('⚠️ No se encontró con búsqueda exacta, intentando búsqueda normalizada...')
       const todosLosProductos = await prisma.product.findMany()
-      productosConMismoNombre = todosLosProductos.filter(p => 
-        p.nombre.toLowerCase().trim() === nombreBusqueda.toLowerCase().trim()
-      )
-      console.log(`🔍 Productos encontrados (case-insensitive): ${productosConMismoNombre.length}`)
+      const nombreBusquedaNormalizado = nombreBusqueda.toLowerCase().trim().replace(/\s+/g, ' ')
+      productosConMismoNombre = todosLosProductos.filter(p => {
+        const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+        return nombreNormalizado === nombreBusquedaNormalizado
+      })
+      console.log(`🔍 Productos encontrados (normalizado): ${productosConMismoNombre.length}`)
+      
+      if (productosConMismoNombre.length > 0) {
+        console.log('🔍 Productos encontrados con búsqueda normalizada:', productosConMismoNombre.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null
+        })))
+      }
     }
     
     console.log(`🔍 Productos encontrados con nombre "${nombreBusqueda}":`, productosConMismoNombre.length)

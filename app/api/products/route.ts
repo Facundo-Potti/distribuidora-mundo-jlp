@@ -106,69 +106,65 @@ export async function GET() {
         })))
       })
       
-      // Si hay duplicados, tomar solo el más reciente (mayor ID) o el activo
-      const productosSinDuplicados = productosADevolver.filter((p, index, self) => {
-        const firstIndex = self.findIndex(prod => prod.nombre === p.nombre)
-        if (firstIndex === index) {
-          // Es el primero, verificar si hay otros con el mismo nombre
-          const duplicados = self.filter(prod => prod.nombre === p.nombre)
-          if (duplicados.length > 1) {
-            // Si hay duplicados, tomar el que tenga imagen más reciente
-            // Extraer timestamp del nombre del archivo de la imagen para determinar cuál es más reciente
-            const conImagen = duplicados.filter(prod => prod.imagen && prod.imagen.includes('supabase.co'))
-            if (conImagen.length > 0) {
-              // Ordenar por timestamp en el nombre del archivo (más reciente primero)
-              conImagen.sort((a, b) => {
-                if (!a.imagen || !b.imagen) return 0
-                
-                // Extraer timestamp del nombre del archivo: producto-Nombre-TIMESTAMP.ext
-                const extractTimestamp = (url: string) => {
-                  const match = url.match(/producto-[^-]+-(\d+)\./i)
-                  return match ? parseInt(match[1]) : 0
-                }
-                
-                const timestampA = extractTimestamp(a.imagen)
-                const timestampB = extractTimestamp(b.imagen)
-                
-                // Si tienen timestamps, usar esos (más reciente = mayor timestamp)
-                if (timestampA > 0 && timestampB > 0) {
-                  return timestampB - timestampA
-                }
-                
-                // Si no tienen timestamps, usar ID como fallback
-                const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
-                const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
-                return idB - idA
-              })
-              
-              console.log(`🔍 Duplicados de "${p.nombre}" ordenados por imagen más reciente:`, conImagen.map(prod => ({
-                id: prod.id,
-                imagen: prod.imagen ? prod.imagen.substring(0, 100) + '...' : null
-              })))
-              
-              return conImagen[0].id === p.id
-            }
-            // Si no hay con imagen, tomar el activo o el más reciente
-            const activos = duplicados.filter(prod => prod.activo !== false)
-            if (activos.length > 0) {
-              activos.sort((a, b) => {
-                const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
-                const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
-                return idB - idA
-              })
-              return activos[0].id === p.id
-            }
-            // Si no hay activos, tomar el más reciente
-            duplicados.sort((a, b) => {
-              const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
-              const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
-              return idB - idA
-            })
-            return duplicados[0].id === p.id
-          }
-          return true
+      // Si hay duplicados, tomar solo el más reciente basándose en la imagen más reciente
+      // Agrupar productos por nombre y tomar el que tenga la imagen más reciente
+      const productosPorNombre = new Map<string, typeof productosADevolver>()
+      
+      productosADevolver.forEach(p => {
+        const nombreNormalizado = p.nombre.toLowerCase().trim()
+        if (!productosPorNombre.has(nombreNormalizado)) {
+          productosPorNombre.set(nombreNormalizado, [])
         }
-        return false
+        productosPorNombre.get(nombreNormalizado)!.push(p)
+      })
+      
+      const productosSinDuplicados: typeof productosADevolver = []
+      
+      productosPorNombre.forEach((productos, nombreNormalizado) => {
+        if (productos.length === 1) {
+          // Solo hay uno, agregarlo directamente
+          productosSinDuplicados.push(productos[0])
+        } else {
+          // Hay duplicados, tomar el que tenga la imagen más reciente
+          console.warn(`⚠️ Filtrando ${productos.length} productos duplicados con nombre "${productos[0].nombre}"`)
+          
+          // Función para extraer timestamp del nombre del archivo
+          const extractTimestamp = (url: string | null): number => {
+            if (!url || !url.includes('supabase.co')) return 0
+            const match = url.match(/producto-[^-]+-(\d+)\./i)
+            return match ? parseInt(match[1]) : 0
+          }
+          
+          // Ordenar por timestamp de imagen (más reciente primero), luego por ID
+          productos.sort((a, b) => {
+            const timestampA = extractTimestamp(a.imagen)
+            const timestampB = extractTimestamp(b.imagen)
+            
+            // Si ambos tienen timestamps, usar esos
+            if (timestampA > 0 && timestampB > 0) {
+              return timestampB - timestampA // Más reciente primero
+            }
+            
+            // Si solo uno tiene timestamp, ese es más reciente
+            if (timestampA > 0) return -1
+            if (timestampB > 0) return 1
+            
+            // Si ninguno tiene timestamp, usar ID como fallback
+            const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+            const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+            return idB - idA
+          })
+          
+          const productoSeleccionado = productos[0]
+          console.log(`✅ Seleccionado producto con imagen más reciente:`, {
+            id: productoSeleccionado.id,
+            nombre: productoSeleccionado.nombre,
+            imagen: productoSeleccionado.imagen ? productoSeleccionado.imagen.substring(0, 100) + '...' : null,
+            timestamp: extractTimestamp(productoSeleccionado.imagen)
+          })
+          
+          productosSinDuplicados.push(productoSeleccionado)
+        }
       })
       
       if (productosSinDuplicados.length < productosADevolver.length) {
