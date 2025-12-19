@@ -22,50 +22,24 @@ export async function PUT(
     const body = await request.json()
     const { nombre, categoria, precio, stock, imagen, descripcion, unidad, nombreOriginal } = body
 
-    console.log('📝 Actualizando producto. Imagen recibida:', imagen)
-    console.log('📝 Datos recibidos:', { nombre, nombreOriginal, imagen })
 
     // Si hay nombreOriginal, significa que se está renombrando el producto
     // Buscar el producto original por nombre
     const nombreBusqueda = nombreOriginal || nombre
     
-    console.log('🔍 Buscando producto:', {
-      nombreRecibido: nombre,
-      nombreOriginal: nombreOriginal,
-      nombreBusqueda: nombreBusqueda,
-      nombreBusquedaLength: nombreBusqueda.length,
-      nombreBusquedaEncoded: encodeURIComponent(nombreBusqueda)
-    })
-    
     // CRÍTICO: Buscar TODOS los productos con ese nombre para detectar duplicados
-    // Intentar búsqueda exacta primero
     let productosConMismoNombre = await prisma.product.findMany({
       where: { nombre: nombreBusqueda },
     })
     
-    // Si no encuentra con búsqueda exacta, intentar búsqueda case-insensitive y normalizada
+    // Si no encuentra con búsqueda exacta, intentar búsqueda normalizada
     if (productosConMismoNombre.length === 0) {
-      console.warn('⚠️ No se encontró con búsqueda exacta, intentando búsqueda normalizada...')
       const todosLosProductos = await prisma.product.findMany()
       const nombreBusquedaNormalizado = nombreBusqueda.toLowerCase().trim().replace(/\s+/g, ' ')
       productosConMismoNombre = todosLosProductos.filter(p => {
         const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
         return nombreNormalizado === nombreBusquedaNormalizado
       })
-      console.log(`🔍 Productos encontrados (normalizado): ${productosConMismoNombre.length}`)
-      
-      if (productosConMismoNombre.length > 0) {
-        console.log('🔍 Productos encontrados con búsqueda normalizada:', productosConMismoNombre.map(p => ({
-          id: p.id,
-          nombre: p.nombre,
-          imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null
-        })))
-      }
-    }
-    
-    console.log(`🔍 Productos encontrados con nombre "${nombreBusqueda}":`, productosConMismoNombre.length)
-    if (productosConMismoNombre.length > 0) {
-      console.log('🔍 IDs encontrados:', productosConMismoNombre.map(p => ({ id: p.id, nombre: p.nombre, imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null })))
     }
     
     if (productosConMismoNombre.length === 0) {
@@ -123,21 +97,22 @@ export async function PUT(
     updateData.descripcion = descripcion && descripcion.trim() !== '' ? descripcion.trim() : null
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
-    console.log('📝 Datos a actualizar:', updateData)
-    console.log('🔍 Producto encontrado:', { 
-      id: producto.id, 
-      nombre: producto.nombre, 
-      imagenActual: producto.imagen,
-      imagenNueva: updateData.imagen
-    })
 
-    // CRÍTICO: Si hay productos duplicados, actualizar TODOS para evitar inconsistencias
+    // CRÍTICO: Si hay productos duplicados, actualizar TODOS y marcar los antiguos como inactivos
     let productoActualizado
     if (productosConMismoNombre.length > 1) {
-      console.warn(`⚠️ Actualizando ${productosConMismoNombre.length} productos duplicados con el nombre "${nombreBusqueda}"`)
+      // Ordenar por ID descendente para identificar el más reciente
+      productosConMismoNombre.sort((a, b) => {
+        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+        return idB - idA
+      })
+      
+      const productoMasReciente = productosConMismoNombre[0]
+      const productosAntiguos = productosConMismoNombre.slice(1)
       
       // Actualizar TODOS los productos con el mismo nombre
-      const productosActualizados = await Promise.all(
+      await Promise.all(
         productosConMismoNombre.map(p => 
           prisma.product.update({
             where: { id: p.id },
@@ -146,20 +121,20 @@ export async function PUT(
         )
       )
       
-      console.log(`✅ ${productosActualizados.length} productos actualizados`)
+      // Marcar los productos antiguos como inactivos para que no aparezcan en las consultas
+      if (productosAntiguos.length > 0) {
+        await Promise.all(
+          productosAntiguos.map(p => 
+            prisma.product.update({
+              where: { id: p.id },
+              data: { activo: false },
+            })
+          )
+        )
+      }
       
-      // Usar el más reciente como respuesta
-      productosActualizados.sort((a, b) => {
-        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
-        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
-        return idB - idA
-      })
-      
-      productoActualizado = productosActualizados[0]
-      console.log('✅ Producto principal actualizado:', {
-        id: productoActualizado.id,
-        nombre: productoActualizado.nombre,
-        imagen: productoActualizado.imagen
+      productoActualizado = await prisma.product.findUnique({
+        where: { id: productoMasReciente.id },
       })
     } else {
       // Actualizar el producto único
@@ -169,72 +144,34 @@ export async function PUT(
       })
     }
 
-    console.log('✅ Producto actualizado en BD:', {
-      id: productoActualizado.id,
-      nombre: productoActualizado.nombre,
-      imagen: productoActualizado.imagen,
-      imagenEsNull: productoActualizado.imagen === null,
-      imagenEsVacio: productoActualizado.imagen === '',
-      imagenCompleta: productoActualizado.imagen
-    })
-
-    // FORZAR un refresh de Prisma para asegurar que los cambios se persisten
     // Esperar un momento para que la BD procese la transacción
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
 
-    // VERIFICAR que realmente se guardó correctamente haciendo una consulta fresca
-    // Usar findFirst con el nombre para evitar problemas de caché
+    // Verificar que realmente se guardó correctamente
     const productoVerificado = await prisma.product.findFirst({
       where: { 
         nombre: productoActualizado.nombre,
-        id: producto.id
+        id: productoActualizado.id,
+        activo: { not: false }
       },
     })
 
-    console.log('🔍 Verificación post-actualización:', {
-      id: productoVerificado?.id,
-      nombre: productoVerificado?.nombre,
-      imagenVerificada: productoVerificado?.imagen,
-      imagenEsperada: updateData.imagen,
-      coincide: productoVerificado?.imagen === updateData.imagen,
-      imagenCompletaVerificada: productoVerificado?.imagen
-    })
-
-    // Si la verificación no coincide, intentar una segunda verificación después de más tiempo
-    if (productoVerificado && productoVerificado.imagen !== updateData.imagen && updateData.imagen !== null) {
-      console.warn('⚠️ Primera verificación falló, esperando más tiempo...')
-      await new Promise(resolve => setTimeout(resolve, 500))
+    // Si la verificación no coincide, intentar una segunda verificación
+    if (!productoVerificado || (productoVerificado.imagen !== updateData.imagen && updateData.imagen !== null)) {
+      await new Promise(resolve => setTimeout(resolve, 300))
       
       const productoVerificado2 = await prisma.product.findFirst({
         where: { 
           nombre: productoActualizado.nombre,
-          id: producto.id
+          id: productoActualizado.id,
+          activo: { not: false }
         },
       })
       
-      console.log('🔍 Segunda verificación:', {
-        id: productoVerificado2?.id,
-        nombre: productoVerificado2?.nombre,
-        imagenVerificada: productoVerificado2?.imagen,
-        coincide: productoVerificado2?.imagen === updateData.imagen
-      })
-      
-      if (productoVerificado2 && productoVerificado2.imagen !== updateData.imagen && updateData.imagen !== null) {
-        console.error('❌ ERROR: La imagen NO se guardó correctamente en la BD después de múltiples intentos!', {
-          esperada: updateData.imagen,
-          obtenidaPrimera: productoVerificado?.imagen,
-          obtenidaSegunda: productoVerificado2.imagen
-        })
-        // Devolver el producto actualizado de todos modos, pero con advertencia
-      } else {
-        console.log('✅ Segunda verificación exitosa, la imagen se guardó correctamente')
-        // Usar el producto verificado en lugar del actualizado
-        return NextResponse.json(productoVerificado2 || productoActualizado)
-      }
+      return NextResponse.json(productoVerificado2 || productoActualizado)
     }
 
-    // Devolver el producto verificado si está disponible y coincide, sino el actualizado
-    return NextResponse.json(productoVerificado && productoVerificado.imagen === updateData.imagen ? productoVerificado : productoActualizado)
+    return NextResponse.json(productoVerificado || productoActualizado)
   } catch (error: any) {
     console.error('Error al actualizar producto:', error)
     return NextResponse.json(
