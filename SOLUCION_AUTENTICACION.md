@@ -73,3 +73,6 @@ Deberías ver:
 3. Prueba con la conexión de pooling primero (es más confiable)
 
 
+
+
+

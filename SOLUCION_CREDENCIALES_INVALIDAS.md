@@ -89,3 +89,6 @@ npx tsx scripts/fix-users.ts
 4. Prueba con el script `fix-users.ts` para recrear los usuarios
 
 
+
+
+

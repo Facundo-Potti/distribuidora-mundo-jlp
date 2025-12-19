@@ -139,7 +139,9 @@ export default function AdminPage() {
             if (p.imagen !== null && 
                 p.imagen !== undefined && 
                 typeof p.imagen === 'string' && 
-                p.imagen.trim() !== '') {
+                p.imagen.trim() !== '' &&
+                !p.imagen.includes('unsplash.com')) {
+              // Solo usar imágenes que no sean de Unsplash (imágenes guardadas)
               imagenDeBD = p.imagen.trim()
             }
             
@@ -349,14 +351,19 @@ export default function AdminPage() {
       // Usar imagenOriginal si existe (imagen real de la BD), sino string vacío
       // También verificar si imagen tiene una URL de Supabase (por si imagenOriginal no está establecida)
       let imagenParaFormulario = ''
+      
+      // Prioridad 1: imagenOriginal (imagen guardada en BD)
       if (producto.imagenOriginal && 
           typeof producto.imagenOriginal === 'string' && 
-          producto.imagenOriginal.trim() !== '') {
+          producto.imagenOriginal.trim() !== '' &&
+          !producto.imagenOriginal.includes('unsplash.com')) {
         imagenParaFormulario = producto.imagenOriginal.trim()
-      } else if (producto.imagen && 
-                 typeof producto.imagen === 'string' && 
-                 producto.imagen.includes('supabase.co')) {
-        // Si imagenOriginal no está pero imagen es de Supabase, usarla
+      } 
+      // Prioridad 2: imagen si es de Supabase (por si imagenOriginal no se estableció correctamente)
+      else if (producto.imagen && 
+               typeof producto.imagen === 'string' && 
+               producto.imagen.includes('supabase.co') &&
+               !producto.imagen.includes('unsplash.com')) {
         imagenParaFormulario = producto.imagen.trim()
       }
       
@@ -364,7 +371,9 @@ export default function AdminPage() {
         nombre: producto.nombre,
         imagenOriginal: producto.imagenOriginal,
         imagen: producto.imagen,
-        imagenParaFormulario: imagenParaFormulario
+        imagenParaFormulario: imagenParaFormulario,
+        tieneImagenOriginal: !!producto.imagenOriginal,
+        tieneImagenSupabase: producto.imagen?.includes('supabase.co')
       })
       
       setProductoEditando(producto)
@@ -400,26 +409,35 @@ export default function AdminPage() {
 
     try {
       // Guardar en la base de datos
+      // Usar el nombre del producto para la URL cuando se edita (la API busca por nombre)
       const url = productoEditando 
-        ? `/api/products/${productoEditando.id}`
+        ? `/api/products/${encodeURIComponent(productoEditando.nombre)}`
         : '/api/products/create'
       
       const method = productoEditando ? 'PUT' : 'POST'
       
       // Preparar datos: imagen debe ser null si está vacía, sino la URL completa
       // CRÍTICO: Verificar que la imagen no sea de Unsplash (imagen por defecto)
+      // Solo guardar URLs de Supabase o URLs válidas (no Unsplash)
       let imagenParaGuardar = null
       if (formProducto.imagen && 
           formProducto.imagen.trim() !== '' && 
           !formProducto.imagen.includes('unsplash.com')) {
-        imagenParaGuardar = formProducto.imagen.trim()
+        // Verificar que sea una URL válida de Supabase o una URL válida en general
+        const imagenTrimmed = formProducto.imagen.trim()
+        if (imagenTrimmed.includes('supabase.co') || imagenTrimmed.startsWith('http')) {
+          imagenParaGuardar = imagenTrimmed
+        }
       }
       
       console.log('💾 Guardando producto con imagen:', {
+        nombre: formProducto.nombre,
         imagenFormulario: formProducto.imagen,
         imagenParaGuardar: imagenParaGuardar,
         esSupabase: imagenParaGuardar && imagenParaGuardar.includes('supabase.co'),
-        esUnsplash: formProducto.imagen && formProducto.imagen.includes('unsplash.com')
+        esUnsplash: formProducto.imagen && formProducto.imagen.includes('unsplash.com'),
+        editando: !!productoEditando,
+        nombreOriginal: productoEditando?.nombre
       })
       
       const bodyData: any = {
@@ -471,7 +489,11 @@ export default function AdminPage() {
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
+          // Extraer imagen de BD: solo si es válida y no es de Unsplash
+          const imagenDeBD = p.imagen && 
+            typeof p.imagen === 'string' && 
+            p.imagen.trim() !== '' &&
+            !p.imagen.includes('unsplash.com')
             ? p.imagen.trim()
             : null
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
@@ -527,8 +549,8 @@ export default function AdminPage() {
         return
       }
 
-      // Eliminar de la base de datos
-      const response = await fetch(`/api/products/${id}`, {
+      // Eliminar de la base de datos usando el nombre del producto
+      const response = await fetch(`/api/products/${encodeURIComponent(producto.nombre)}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -550,7 +572,11 @@ export default function AdminPage() {
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
+          // Extraer imagen de BD: solo si es válida y no es de Unsplash
+          const imagenDeBD = p.imagen && 
+            typeof p.imagen === 'string' && 
+            p.imagen.trim() !== '' &&
+            !p.imagen.includes('unsplash.com')
             ? p.imagen.trim()
             : null
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
@@ -997,16 +1023,23 @@ export default function AdminPage() {
                       <img
                         key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
                         src={(() => {
-                          // Priorizar imagenOriginal (imagen guardada en BD)
-                          // La imagen ya está comprimida al subir (máximo 800px, calidad 70%)
-                          if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
-                            // Agregar parámetros de caché para mejorar rendimiento
-                            const url = producto.imagenOriginal
-                            // Si no tiene parámetros, agregar timestamp para forzar recarga si es necesario
-                            return url.includes('?') ? url : `${url}?cache=1`
+                          // Prioridad 1: imagenOriginal (imagen guardada en BD de Supabase)
+                          if (producto.imagenOriginal && 
+                              typeof producto.imagenOriginal === 'string' &&
+                              producto.imagenOriginal.includes('supabase.co') &&
+                              !producto.imagenOriginal.includes('unsplash.com')) {
+                            // Usar la URL de Supabase directamente (ya es pública)
+                            return producto.imagenOriginal
                           }
-                          // Si no hay imagenOriginal, usar imagen (puede ser por defecto)
-                          return producto.imagen
+                          // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
+                          if (producto.imagen && 
+                              typeof producto.imagen === 'string' &&
+                              producto.imagen.includes('supabase.co') &&
+                              !producto.imagen.includes('unsplash.com')) {
+                            return producto.imagen
+                          }
+                          // Prioridad 3: imagen por defecto (Unsplash)
+                          return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
                         })()}
                         alt={producto.nombre}
                         className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
@@ -1038,12 +1071,18 @@ export default function AdminPage() {
                           console.error('❌ Error al cargar imagen:', {
                             nombre: producto.nombre,
                             imagenOriginal: producto.imagenOriginal,
-                            imagen: producto.imagen
+                            imagen: producto.imagen,
+                            src: e.currentTarget.src
                           })
-                          // Si falla la carga, usar imagen por defecto solo si no es de Supabase
-                          if (!producto.imagenOriginal || !producto.imagenOriginal.includes('supabase.co')) {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
+                          // Si falla la carga de una imagen de Supabase, intentar recargar una vez
+                          const currentSrc = e.currentTarget.src
+                          if (currentSrc.includes('supabase.co')) {
+                            // Intentar recargar con un timestamp para evitar cache
+                            e.currentTarget.src = `${currentSrc.split('?')[0]}?t=${Date.now()}`
+                            return
                           }
+                          // Si no es de Supabase o falla de nuevo, usar imagen por defecto
+                          e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
                         }}
                       />
                     </div>
@@ -1327,29 +1366,41 @@ export default function AdminPage() {
                     imageUrlType: typeof imageUrl,
                     imageUrlLength: imageUrl ? imageUrl.length : 0,
                     esSupabase: imageUrl && imageUrl.includes('supabase.co'),
+                    esVacio: imageUrl === '',
                     formProductoActual: formProducto
                   })
                   
-                  // CRÍTICO: Actualizar el formulario con la URL de Supabase
-                  // Solo si es una URL válida de Supabase (no Unsplash)
+                  // Actualizar el formulario con la URL de la imagen
+                  // 1. Si es una URL de Supabase (imagen subida), guardarla
                   if (imageUrl && imageUrl.includes('supabase.co')) {
                     setFormProducto(prev => {
                       const nuevo = { ...prev, imagen: imageUrl }
                       console.log('✅ FormProducto actualizado con imagen Supabase:', nuevo)
                       return nuevo
                     })
-                  } else if (imageUrl === '') {
-                    // Si se eliminó la imagen, limpiar el campo
+                  } 
+                  // 2. Si se eliminó la imagen (string vacío), limpiar el campo
+                  else if (imageUrl === '') {
                     setFormProducto(prev => {
                       const nuevo = { ...prev, imagen: '' }
                       console.log('🗑️ FormProducto actualizado (imagen eliminada):', nuevo)
                       return nuevo
                     })
-                  } else {
-                    console.warn('⚠️ URL de imagen no válida:', imageUrl)
+                  } 
+                  // 3. Si es una URL válida pero no de Supabase (URL manual), también guardarla
+                  else if (imageUrl && imageUrl.startsWith('http') && !imageUrl.includes('unsplash.com')) {
+                    setFormProducto(prev => {
+                      const nuevo = { ...prev, imagen: imageUrl }
+                      console.log('✅ FormProducto actualizado con URL manual:', nuevo)
+                      return nuevo
+                    })
+                  } 
+                  // 4. Cualquier otro caso, no hacer nada
+                  else {
+                    console.warn('⚠️ URL de imagen no válida o ignorada:', imageUrl)
                   }
                 }}
-                productId={productoEditando?.id.toString()}
+                productId={productoEditando?.nombre || formProducto.nombre || 'new'}
                 productName={formProducto.nombre || 'producto'}
               />
               <p className="text-xs text-gray-500 mt-2">

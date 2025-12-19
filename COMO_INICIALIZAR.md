@@ -80,3 +80,6 @@ https://distribuidora-mundo-jlp.vercel.app/auth/login
 - **Para Vercel**: Ya está configurada automáticamente en las variables de entorno
 
 
+
+
+

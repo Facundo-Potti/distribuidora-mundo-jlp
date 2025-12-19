@@ -148,3 +148,6 @@ Antes de hacer deploy, verifica:
 4. Si el build es exitoso, inicializa la base de datos (ver `INICIALIZAR_DESDE_LOCAL.md`)
 
 
+
+
+

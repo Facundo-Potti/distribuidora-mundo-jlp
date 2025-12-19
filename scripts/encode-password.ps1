@@ -23,3 +23,6 @@ Write-Host "Ejemplo completo:" -ForegroundColor Gray
 Write-Host "postgresql://postgres.xxxxx:$encoded@aws-0-xx.pooler.supabase.com:6543/postgres?sslmode=require" -ForegroundColor White
 
 
+
+
+

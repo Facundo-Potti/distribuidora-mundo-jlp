@@ -82,3 +82,6 @@ npm run db:seed
 - Las contraseñas están hasheadas con bcrypt, no se pueden leer directamente
 
 
+
+
+

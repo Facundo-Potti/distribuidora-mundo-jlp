@@ -184,3 +184,6 @@ postgresql://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/p
 - [ ] Nuevo deploy realizado
 
 
+
+
+

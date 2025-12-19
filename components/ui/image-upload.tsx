@@ -28,21 +28,33 @@ export function ImageUpload({
   useEffect(() => {
     if (uploading) return // No actualizar durante subida
     
+    // Si hay una imagen válida de Supabase, usarla
     if (
       currentImage && 
       typeof currentImage === 'string' && 
       currentImage.trim() !== '' &&
-      currentImage.includes('supabase.co')
+      currentImage.includes('supabase.co') &&
+      !currentImage.includes('unsplash.com')
     ) {
+      const imagenTrimmed = currentImage.trim()
+      console.log('🖼️ ImageUpload: Actualizando preview con imagen de Supabase:', imagenTrimmed)
+      setPreview(imagenTrimmed)
+    } 
+    // Si la imagen está vacía o es null, limpiar el preview
+    else if (!currentImage || (typeof currentImage === 'string' && currentImage.trim() === '')) {
+      console.log('🖼️ ImageUpload: Limpiando preview (imagen vacía o null)')
+      setPreview(null)
+    }
+    // Si hay una imagen pero no es de Supabase (puede ser una URL manual), también mostrarla
+    else if (
+      currentImage && 
+      typeof currentImage === 'string' && 
+      currentImage.trim() !== '' &&
+      currentImage.startsWith('http') &&
+      !currentImage.includes('unsplash.com')
+    ) {
+      console.log('🖼️ ImageUpload: Actualizando preview con URL manual:', currentImage.trim())
       setPreview(currentImage.trim())
-    } else if (!currentImage || (typeof currentImage === 'string' && currentImage.trim() === '')) {
-      // Solo limpiar si no hay imagen y el preview no es una imagen subida
-      setPreview(prev => {
-        if (prev && prev.includes('supabase.co')) {
-          return prev // Mantener imagen de Supabase
-        }
-        return null
-      })
     }
   }, [currentImage, uploading])
 
@@ -180,8 +192,11 @@ export function ImageUpload({
         throw new Error('URL de imagen inválida recibida del servidor')
       }
       
+      console.log('✅ ImageUpload: Imagen subida exitosamente:', imageUrl)
+      
       // Actualizar preview y formulario inmediatamente
       setPreview(imageUrl)
+      // Llamar al callback para actualizar el formulario padre
       onImageUploaded(imageUrl)
       setError(null)
     } catch (err: any) {
@@ -195,7 +210,9 @@ export function ImageUpload({
   }
 
   const handleRemove = () => {
+    console.log('🗑️ ImageUpload: Eliminando imagen')
     setPreview(null)
+    // Notificar al componente padre que se eliminó la imagen
     onImageUploaded('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''

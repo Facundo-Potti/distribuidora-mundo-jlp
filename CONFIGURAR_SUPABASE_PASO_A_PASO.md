@@ -98,3 +98,6 @@ postgresql://postgres.qnviwuiqeaoixiplzqac:[PASSWORD]@aws-0-[REGION].pooler.supa
 3. O en el dropdown "Type", busca opciones relacionadas con "Pooler"
 
 
+
+
+

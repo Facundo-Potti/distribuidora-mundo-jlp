@@ -114,3 +114,6 @@ npm run dev
 - ✅ Las imágenes se almacenan permanentemente en Supabase Storage
 
 
+
+
+

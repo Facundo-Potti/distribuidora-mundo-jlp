@@ -107,3 +107,6 @@ async function verificarImagen() {
 verificarImagen()
 
 
+
+
+
