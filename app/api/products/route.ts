@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     // Obtener TODOS los productos directamente de la BD sin caché
+    // Ordenar por updatedAt DESCENDENTE primero para asegurar que los más recientes estén primero
     const allProducts = await prisma.product.findMany({
       orderBy: {
-        nombre: 'asc',
+        updatedAt: 'desc', // CRÍTICO: Ordenar por updatedAt descendente desde la BD
       },
     })
     
@@ -19,13 +20,15 @@ export async function GET() {
       p.nombre.toLowerCase().includes('aceituna')
     )
     if (productosAceite.length > 0) {
-      console.log(`🔍 Productos relacionados con "Aceite", "Girasol" o "Aceituna": ${productosAceite.length}`, 
+      console.log(`🔍 DEBUG GET: TODOS los productos con "Aceite", "Girasol" o "Aceituna" en la BD:`, 
         productosAceite.map(p => ({
           id: p.id,
           nombre: p.nombre,
           imagen: p.imagen || 'null',
+          imagenCompleta: p.imagen,
           activo: p.activo,
-          updatedAt: p.updatedAt
+          updatedAt: p.updatedAt?.toISOString() || 'null',
+          updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0
         }))
       )
     }
@@ -65,17 +68,40 @@ export async function GET() {
     // Determinar qué productos devolver (en desarrollo, si no hay activos, devolver todos)
     let productosADevolver = products.length > 0 ? products : (process.env.NODE_ENV === 'development' ? allProducts : [])
     
-    // Ordenar por updatedAt descendente para que los más recientes estén primero
+    // Ya están ordenados por updatedAt descendente desde la BD, pero reordenar por si acaso
     productosADevolver.sort((a, b) => {
       if (a.updatedAt && b.updatedAt) {
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        const timeA = new Date(a.updatedAt).getTime()
+        const timeB = new Date(b.updatedAt).getTime()
+        return timeB - timeA // Más reciente primero
       }
       if (a.updatedAt && !b.updatedAt) return -1
       if (!a.updatedAt && b.updatedAt) return 1
-      return 0
+      // Si no tienen updatedAt, usar ID como fallback (mayor = más reciente)
+      const idA = typeof a.id === 'number' ? a.id : String(a.id)
+      const idB = typeof b.id === 'number' ? b.id : String(b.id)
+      return idA > idB ? -1 : 1
     })
     
+    // Log de productos con "aceite" o "girasol" después de ordenar
+    const productosAceiteOrdenados = productosADevolver.filter(p => 
+      p.nombre.toLowerCase().includes('aceite') || 
+      p.nombre.toLowerCase().includes('girasol')
+    )
+    if (productosAceiteOrdenados.length > 0) {
+      console.log(`🔍 DEBUG GET: Productos ordenados por updatedAt (más reciente primero):`, 
+        productosAceiteOrdenados.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          imagen: p.imagen || 'null',
+          updatedAt: p.updatedAt?.toISOString() || 'null',
+          updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0
+        }))
+      )
+    }
+    
     // Si hay productos con el mismo nombre normalizado, tomar solo el primero (más reciente por updatedAt)
+    // IMPORTANTE: Como ya están ordenados por updatedAt descendente, el primero es siempre el más reciente
     const productosUnicos = new Map<string, typeof productosADevolver[0]>()
     productosADevolver.forEach(p => {
       const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
@@ -89,8 +115,13 @@ export async function GET() {
           const fechaExistente = new Date(existente.updatedAt).getTime()
           if (fechaP > fechaExistente) {
             productosUnicos.set(nombreNormalizado, p)
-            console.log(`🔄 Reemplazando producto duplicado "${p.nombre}" (ID: ${existente.id} -> ${p.id}) porque tiene updatedAt más reciente`)
+            console.log(`🔄 DEBUG GET: Reemplazando producto duplicado "${p.nombre}" (ID: ${existente.id} -> ${p.id}) porque tiene updatedAt más reciente`)
+            console.log(`   Existente: updatedAt=${fechaExistente}, imagen=${existente.imagen || 'null'}`)
+            console.log(`   Nuevo: updatedAt=${fechaP}, imagen=${p.imagen || 'null'}`)
           }
+        } else if (p.updatedAt && !existente.updatedAt) {
+          productosUnicos.set(nombreNormalizado, p)
+          console.log(`🔄 DEBUG GET: Reemplazando producto duplicado "${p.nombre}" (ID: ${existente.id} -> ${p.id}) porque el nuevo tiene updatedAt`)
         }
       }
     })
