@@ -45,9 +45,10 @@ import Image from "next/image"
 import { ImageUpload } from "@/components/ui/image-upload"
 
 // Componente para renderizar imagen de producto con cache busting
-const ProductImage = React.memo(({ producto, refreshKey, cacheBuster }: { producto: Producto, refreshKey: number, cacheBuster: number }) => {
-  // Calcular URL de imagen usando useMemo para evitar recálculos innecesarios
-  const imageUrl = React.useMemo(() => {
+// NO usar React.memo para forzar re-render siempre
+const ProductImage = ({ producto, refreshKey, cacheBuster }: { producto: Producto, refreshKey: number, cacheBuster: number }) => {
+  // Calcular URL de imagen - SIEMPRE recalcular para forzar actualización
+  const getImageUrl = () => {
     // Prioridad 1: imagenOriginal (imagen guardada en BD de Supabase)
     if (producto.imagenOriginal && 
         typeof producto.imagenOriginal === 'string' &&
@@ -56,7 +57,8 @@ const ProductImage = React.memo(({ producto, refreshKey, cacheBuster }: { produc
       // Agregar timestamp único para evitar caché del navegador
       const url = producto.imagenOriginal
       const separator = url.includes('?') ? '&' : '?'
-      return `${url}${separator}t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
+      const timestamp = Date.now()
+      return `${url}${separator}t=${timestamp}&r=${refreshKey}&c=${cacheBuster}`
     }
     // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
     if (producto.imagen && 
@@ -65,29 +67,19 @@ const ProductImage = React.memo(({ producto, refreshKey, cacheBuster }: { produc
         !producto.imagen.includes('unsplash.com')) {
       const url = producto.imagen
       const separator = url.includes('?') ? '&' : '?'
-      return `${url}${separator}t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
+      const timestamp = Date.now()
+      return `${url}${separator}t=${timestamp}&r=${refreshKey}&c=${cacheBuster}`
     }
     // Prioridad 3: imagen por defecto (Unsplash)
     return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-  }, [producto.imagenOriginal, producto.imagen, refreshKey, cacheBuster])
+  }
 
-  const [imageSrc, setImageSrc] = useState(imageUrl)
-  const [imageError, setImageError] = useState(false)
-
-  // Actualizar imagen cuando cambia la URL calculada
-  useEffect(() => {
-    console.log('🖼️ ProductImage: Actualizando imagen para', producto.nombre, {
-      imagenOriginal: producto.imagenOriginal,
-      imageUrl,
-      refreshKey,
-      cacheBuster
-    })
-    setImageSrc(imageUrl)
-    setImageError(false)
-  }, [imageUrl, producto.nombre])
+  // SIEMPRE usar la URL calculada directamente, sin estado intermedio
+  const imageSrc = getImageUrl()
 
   return (
     <img
+      key={`product-img-${producto.nombre}-${refreshKey}-${cacheBuster}-${producto.imagenOriginal || 'no-img'}`}
       src={imageSrc}
       alt={producto.nombre}
       className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
@@ -100,7 +92,7 @@ const ProductImage = React.memo(({ producto, refreshKey, cacheBuster }: { produc
         display: 'block', 
         width: '100%', 
         height: '100%',
-        opacity: imageError ? 0 : 1,
+        opacity: 0,
         objectFit: 'cover'
       }}
       onLoad={(e) => {
@@ -122,29 +114,21 @@ const ProductImage = React.memo(({ producto, refreshKey, cacheBuster }: { produc
           imagen: producto.imagen,
           src: e.currentTarget.src
         })
-        // Si falla la carga de una imagen de Supabase, intentar recargar una vez
+        // Si falla la carga, intentar recargar con timestamp nuevo
         const currentSrc = e.currentTarget.src
-        if (currentSrc.includes('supabase.co') && !imageError) {
-          setImageError(true)
-          // Intentar recargar con un timestamp nuevo
+        if (currentSrc.includes('supabase.co')) {
           const baseUrl = currentSrc.split('?')[0]
-          const newUrl = `${baseUrl}?t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
-          setTimeout(() => {
-            setImageSrc(newUrl)
-            setImageError(false)
-          }, 100)
+          e.currentTarget.src = `${baseUrl}?t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
           return
         }
-        // Si no es de Supabase o falla de nuevo, usar imagen por defecto
+        // Si no es de Supabase, usar imagen por defecto
         if (!currentSrc.includes('unsplash.com')) {
-          setImageSrc("https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop")
+          e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
         }
       }}
     />
   )
-})
-
-ProductImage.displayName = 'ProductImage'
+}
 
 // Tipos
 interface Producto {
@@ -665,13 +649,9 @@ export default function AdminPage() {
               nombre: p.nombre,
               imagenBD: p.imagen,
               imagenDeBD: imagenDeBD,
-              imagenParaMostrar: imagenParaMostrar
+              imagenParaMostrar: imagenParaMostrar,
+              imagenGuardada: productoGuardado.imagen
             })
-            // Actualizar cache buster para este producto específico
-            setImageCacheBuster(prev => ({
-              ...prev,
-              [p.nombre]: Date.now()
-            }))
           }
           
           return {
@@ -689,15 +669,14 @@ export default function AdminPage() {
         
         console.log('✅ Productos formateados después de guardar:', productosFormateados.length)
         
-        // Crear nuevos arrays para forzar actualización de React
-        const nuevosProductos = [...productosFormateados]
-        const nuevosProductosFiltrados = [...productosFormateados]
+        // FORZAR ACTUALIZACIÓN COMPLETA - Crear nuevos arrays y objetos
+        const nuevosProductos = productosFormateados.map(p => ({ ...p }))
         
-        // Actualizar estado de productos (usar spread para crear nueva referencia)
+        // Actualizar estado de productos
         setProductos(nuevosProductos)
         
         // Actualizar productos filtrados
-        let filtrados = nuevosProductosFiltrados
+        let filtrados = nuevosProductos.map(p => ({ ...p }))
         if (busquedaProductos) {
           filtrados = filtrados.filter(
             (p) =>
@@ -708,21 +687,53 @@ export default function AdminPage() {
         if (categoriaFiltro) {
           filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
         }
-        setProductosFiltrados([...filtrados])
+        setProductosFiltrados(filtrados)
         
-        // Forzar re-render de imágenes con un nuevo timestamp
-        // Actualizar refreshKey y cache buster para el producto guardado
-        setRefreshKey(timestamp)
+        // FORZAR RE-RENDER COMPLETO con timestamp único
+        const newRefreshKey = Date.now()
         
-        // Actualizar cache buster específico para el producto guardado
+        // Actualizar cache buster específico para el producto guardado ANTES de actualizar refreshKey
         if (productoGuardado.nombre) {
-          setImageCacheBuster(prev => ({
-            ...prev,
-            [productoGuardado.nombre]: Date.now()
-          }))
+          const newCacheBuster = Date.now()
+          console.log('🔄 Actualizando cache buster para', productoGuardado.nombre, ':', newCacheBuster)
+          setImageCacheBuster(prev => {
+            const nuevo = {
+              ...prev,
+              [productoGuardado.nombre]: newCacheBuster
+            }
+            console.log('🔄 Nuevo cache buster state:', nuevo)
+            return nuevo
+          })
         }
         
-        console.log('🔄 Estado actualizado, refreshKey:', timestamp)
+        // Actualizar refreshKey después de actualizar cache buster
+        setRefreshKey(newRefreshKey)
+        
+        console.log('🔄 Estado actualizado completamente:', {
+          refreshKey: newRefreshKey,
+          productosActualizados: nuevosProductos.length,
+          productoGuardado: productoGuardado.nombre,
+          imagenProductoGuardado: productoGuardado.imagen
+        })
+        
+        // Buscar el producto actualizado en la lista para verificar
+        const productoActualizadoEnLista = nuevosProductos.find(p => p.nombre === productoGuardado.nombre)
+        if (productoActualizadoEnLista) {
+          console.log('✅ Producto encontrado en lista actualizada:', {
+            nombre: productoActualizadoEnLista.nombre,
+            imagenOriginal: productoActualizadoEnLista.imagenOriginal,
+            imagen: productoActualizadoEnLista.imagen
+          })
+        } else {
+          console.warn('⚠️ Producto NO encontrado en lista actualizada:', productoGuardado.nombre)
+        }
+        
+        // Forzar un segundo re-render después de un pequeño delay para asegurar actualización
+        setTimeout(() => {
+          const secondRefreshKey = Date.now()
+          setRefreshKey(secondRefreshKey)
+          console.log('🔄 Segundo refresh forzado:', secondRefreshKey)
+        }, 300)
       } else {
         console.error('❌ Error al recargar productos después de guardar:', productosResponse.statusText)
       }
@@ -1220,7 +1231,7 @@ export default function AdminPage() {
                         key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${imageCacheBuster[producto.nombre] || 0}-${producto.imagenOriginal || 'no-img'}`}
                         producto={producto}
                         refreshKey={refreshKey}
-                        cacheBuster={imageCacheBuster[producto.nombre] || Date.now()}
+                        cacheBuster={imageCacheBuster[producto.nombre] || 0}
                       />
                     </div>
                     <CardHeader>
