@@ -34,10 +34,13 @@ export async function PUT(
     if (!producto) {
       const todosLosProductos = await prisma.product.findMany()
       const nombreBusquedaNormalizado = nombreBusqueda.toLowerCase().trim().replace(/\s+/g, ' ')
-      producto = todosLosProductos.find(p => {
+      const productoEncontrado = todosLosProductos.find(p => {
         const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
         return nombreNormalizado === nombreBusquedaNormalizado
       })
+      if (productoEncontrado) {
+        producto = productoEncontrado
+      }
     }
     
     if (!producto) {
