@@ -95,6 +95,19 @@ export async function GET() {
         // Hay duplicados, tomar el que tenga la imagen más reciente
         duplicadosEncontrados += productos.length - 1
         
+        // Log para productos con duplicados (especialmente si contienen "Aceite" o "Girasol")
+        if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol')) {
+          console.log(`🔄 Productos duplicados encontrados para "${nombreNormalizado}": ${productos.length}`, 
+            productos.map(p => ({
+              id: p.id,
+              nombre: p.nombre,
+              imagen: p.imagen || 'null',
+              activo: p.activo,
+              timestamp: extractTimestamp(p.imagen)
+            }))
+          )
+        }
+        
         // Ordenar por timestamp de imagen (más reciente primero), luego por ID
         productos.sort((a, b) => {
           const timestampA = extractTimestamp(a.imagen)
@@ -115,9 +128,23 @@ export async function GET() {
           return idB - idA
         })
         
+        // Log del producto seleccionado
+        if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol')) {
+          console.log(`✅ Producto seleccionado para "${nombreNormalizado}":`, {
+            id: productos[0].id,
+            nombre: productos[0].nombre,
+            imagen: productos[0].imagen || 'null',
+            timestamp: extractTimestamp(productos[0].imagen)
+          })
+        }
+        
         productosSinDuplicados.push(productos[0])
       }
     })
+    
+    if (duplicadosEncontrados > 0) {
+      console.log(`⚠️ Total de productos duplicados encontrados: ${duplicadosEncontrados}`)
+    }
     
     // Agregar headers para evitar cache
     return NextResponse.json(productosSinDuplicados, {

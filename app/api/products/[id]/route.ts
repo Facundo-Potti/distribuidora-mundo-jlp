@@ -68,8 +68,8 @@ export async function PUT(
     
     // Log de la imagen que se va a guardar
     console.log(`💾 Actualizando producto "${nombre}" (ID: ${producto.id})`)
-    console.log(`🖼️ Imagen actual en BD: ${producto.imagen ? producto.imagen.substring(0, 80) + '...' : 'null'}`)
-    console.log(`🖼️ Imagen nueva a guardar: ${imagenParaGuardar ? imagenParaGuardar.substring(0, 80) + '...' : 'null'}`)
+    console.log(`🖼️ Imagen actual en BD: ${producto.imagen || 'null'}`)
+    console.log(`🖼️ Imagen nueva a guardar: ${imagenParaGuardar || 'null'}`)
 
     // Preparar datos de actualización
     const updateData: any = {
@@ -90,10 +90,10 @@ export async function PUT(
       data: updateData,
     })
 
-    console.log(`✅ Producto actualizado. Imagen en respuesta: ${productoActualizado.imagen ? productoActualizado.imagen.substring(0, 80) + '...' : 'null'}`)
+    console.log(`✅ Producto actualizado. Imagen en respuesta: ${productoActualizado.imagen || 'null'}`)
 
     // Esperar un momento para asegurar que la transacción se complete
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise(resolve => setTimeout(resolve, 300))
 
     // Verificar que realmente se guardó correctamente usando findFirst para evitar caché
     const productoVerificado = await prisma.product.findFirst({
@@ -103,7 +103,8 @@ export async function PUT(
     })
 
     if (productoVerificado) {
-      console.log(`🔍 Verificación: Imagen en BD después de actualizar: ${productoVerificado.imagen ? productoVerificado.imagen.substring(0, 80) + '...' : 'null'}`)
+      console.log(`🔍 Verificación: Imagen en BD después de actualizar: ${productoVerificado.imagen || 'null'}`)
+      console.log(`🔍 Comparación: Imagen esperada: ${imagenParaGuardar || 'null'}, Imagen verificada: ${productoVerificado.imagen || 'null'}`)
       
       // Si la imagen no coincide, forzar una actualización directa
       if (imagenParaGuardar !== null && productoVerificado.imagen !== imagenParaGuardar) {
@@ -116,16 +117,34 @@ export async function PUT(
         })
         
         // Esperar nuevamente
-        await new Promise(resolve => setTimeout(resolve, 200))
+        await new Promise(resolve => setTimeout(resolve, 300))
         
         // Obtener el producto actualizado nuevamente
         const productoFinal = await prisma.product.findFirst({
           where: { id: producto.id },
         })
         
-        console.log(`✅ Imagen forzada. Imagen final: ${productoFinal?.imagen ? productoFinal.imagen.substring(0, 80) + '...' : 'null'}`)
+        console.log(`✅ Imagen forzada. Imagen final: ${productoFinal?.imagen || 'null'}`)
         
-        return NextResponse.json(productoFinal || productoActualizado)
+        if (productoFinal) {
+          return NextResponse.json(productoFinal)
+        }
+      } else if (imagenParaGuardar === null && productoVerificado.imagen !== null) {
+        // Si se envió null pero hay una imagen, también forzar la actualización
+        console.log(`⚠️ Imagen debería ser null pero hay imagen en BD, forzando actualización...`)
+        await prisma.product.update({
+          where: { id: producto.id },
+          data: { imagen: null },
+        })
+        await new Promise(resolve => setTimeout(resolve, 300))
+        const productoFinal = await prisma.product.findFirst({
+          where: { id: producto.id },
+        })
+        if (productoFinal) {
+          return NextResponse.json(productoFinal)
+        }
+      } else {
+        console.log(`✅ Imagen coincide correctamente`)
       }
     }
 
