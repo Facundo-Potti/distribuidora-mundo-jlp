@@ -44,6 +44,108 @@ import {
 import Image from "next/image"
 import { ImageUpload } from "@/components/ui/image-upload"
 
+// Componente para renderizar imagen de producto con cache busting
+const ProductImage = React.memo(({ producto, refreshKey, cacheBuster }: { producto: Producto, refreshKey: number, cacheBuster: number }) => {
+  // Calcular URL de imagen usando useMemo para evitar recálculos innecesarios
+  const imageUrl = React.useMemo(() => {
+    // Prioridad 1: imagenOriginal (imagen guardada en BD de Supabase)
+    if (producto.imagenOriginal && 
+        typeof producto.imagenOriginal === 'string' &&
+        producto.imagenOriginal.includes('supabase.co') &&
+        !producto.imagenOriginal.includes('unsplash.com')) {
+      // Agregar timestamp único para evitar caché del navegador
+      const url = producto.imagenOriginal
+      const separator = url.includes('?') ? '&' : '?'
+      return `${url}${separator}t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
+    }
+    // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
+    if (producto.imagen && 
+        typeof producto.imagen === 'string' &&
+        producto.imagen.includes('supabase.co') &&
+        !producto.imagen.includes('unsplash.com')) {
+      const url = producto.imagen
+      const separator = url.includes('?') ? '&' : '?'
+      return `${url}${separator}t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
+    }
+    // Prioridad 3: imagen por defecto (Unsplash)
+    return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
+  }, [producto.imagenOriginal, producto.imagen, refreshKey, cacheBuster])
+
+  const [imageSrc, setImageSrc] = useState(imageUrl)
+  const [imageError, setImageError] = useState(false)
+
+  // Actualizar imagen cuando cambia la URL calculada
+  useEffect(() => {
+    console.log('🖼️ ProductImage: Actualizando imagen para', producto.nombre, {
+      imagenOriginal: producto.imagenOriginal,
+      imageUrl,
+      refreshKey,
+      cacheBuster
+    })
+    setImageSrc(imageUrl)
+    setImageError(false)
+  }, [imageUrl, producto.nombre])
+
+  return (
+    <img
+      src={imageSrc}
+      alt={producto.nombre}
+      className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
+      loading="lazy"
+      decoding="async"
+      fetchPriority="low"
+      width={400}
+      height={300}
+      style={{ 
+        display: 'block', 
+        width: '100%', 
+        height: '100%',
+        opacity: imageError ? 0 : 1,
+        objectFit: 'cover'
+      }}
+      onLoad={(e) => {
+        // Mostrar imagen cuando esté cargada
+        e.currentTarget.style.opacity = '1'
+        // Ocultar placeholder
+        const placeholder = e.currentTarget.previousElementSibling as HTMLElement
+        if (placeholder) {
+          placeholder.style.opacity = '0'
+          setTimeout(() => {
+            placeholder.style.display = 'none'
+          }, 200)
+        }
+      }}
+      onError={(e) => {
+        console.error('❌ Error al cargar imagen:', {
+          nombre: producto.nombre,
+          imagenOriginal: producto.imagenOriginal,
+          imagen: producto.imagen,
+          src: e.currentTarget.src
+        })
+        // Si falla la carga de una imagen de Supabase, intentar recargar una vez
+        const currentSrc = e.currentTarget.src
+        if (currentSrc.includes('supabase.co') && !imageError) {
+          setImageError(true)
+          // Intentar recargar con un timestamp nuevo
+          const baseUrl = currentSrc.split('?')[0]
+          const newUrl = `${baseUrl}?t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
+          setTimeout(() => {
+            setImageSrc(newUrl)
+            setImageError(false)
+          }, 100)
+          return
+        }
+        // Si no es de Supabase o falla de nuevo, usar imagen por defecto
+        if (!currentSrc.includes('unsplash.com')) {
+          setImageSrc("https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop")
+        }
+      }}
+    />
+  )
+})
+
+ProductImage.displayName = 'ProductImage'
+
 // Tipos
 interface Producto {
   id: number
@@ -89,6 +191,7 @@ export default function AdminPage() {
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
   const [dialogProductoAbierto, setDialogProductoAbierto] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0) // Para forzar re-render de imágenes
+  const [imageCacheBuster, setImageCacheBuster] = useState<{[key: string]: number}>({}) // Cache buster por producto
   const [formProducto, setFormProducto] = useState({
     nombre: "",
     categoria: "",
@@ -564,6 +667,11 @@ export default function AdminPage() {
               imagenDeBD: imagenDeBD,
               imagenParaMostrar: imagenParaMostrar
             })
+            // Actualizar cache buster para este producto específico
+            setImageCacheBuster(prev => ({
+              ...prev,
+              [p.nombre]: Date.now()
+            }))
           }
           
           return {
@@ -603,11 +711,18 @@ export default function AdminPage() {
         setProductosFiltrados([...filtrados])
         
         // Forzar re-render de imágenes con un nuevo timestamp
-        // Usar setTimeout para asegurar que el estado se actualice después del render
-        setTimeout(() => {
-          setRefreshKey(timestamp)
-          console.log('🔄 Estado actualizado, refreshKey:', timestamp)
-        }, 100)
+        // Actualizar refreshKey y cache buster para el producto guardado
+        setRefreshKey(timestamp)
+        
+        // Actualizar cache buster específico para el producto guardado
+        if (productoGuardado.nombre) {
+          setImageCacheBuster(prev => ({
+            ...prev,
+            [productoGuardado.nombre]: Date.now()
+          }))
+        }
+        
+        console.log('🔄 Estado actualizado, refreshKey:', timestamp)
       } else {
         console.error('❌ Error al recargar productos después de guardar:', productosResponse.statusText)
       }
@@ -1101,75 +1216,11 @@ export default function AdminPage() {
                       <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-0">
                         <div className="w-12 h-12 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
                       </div>
-                      <img
-                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
-                        src={(() => {
-                          // Prioridad 1: imagenOriginal (imagen guardada en BD de Supabase)
-                          if (producto.imagenOriginal && 
-                              typeof producto.imagenOriginal === 'string' &&
-                              producto.imagenOriginal.includes('supabase.co') &&
-                              !producto.imagenOriginal.includes('unsplash.com')) {
-                            // Agregar timestamp para evitar caché del navegador
-                            const url = producto.imagenOriginal
-                            const separator = url.includes('?') ? '&' : '?'
-                            return `${url}${separator}t=${refreshKey}`
-                          }
-                          // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
-                          if (producto.imagen && 
-                              typeof producto.imagen === 'string' &&
-                              producto.imagen.includes('supabase.co') &&
-                              !producto.imagen.includes('unsplash.com')) {
-                            const url = producto.imagen
-                            const separator = url.includes('?') ? '&' : '?'
-                            return `${url}${separator}t=${refreshKey}`
-                          }
-                          // Prioridad 3: imagen por defecto (Unsplash)
-                          return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-                        })()}
-                        alt={producto.nombre}
-                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
-                        loading="lazy"
-                        decoding="async"
-                        fetchPriority="low"
-                        width={400}
-                        height={300}
-                        style={{ 
-                          display: 'block', 
-                          width: '100%', 
-                          height: '100%',
-                          opacity: 0,
-                          objectFit: 'cover'
-                        }}
-                        onLoad={(e) => {
-                          // Mostrar imagen cuando esté cargada
-                          e.currentTarget.style.opacity = '1'
-                          // Ocultar placeholder
-                          const placeholder = e.currentTarget.previousElementSibling as HTMLElement
-                          if (placeholder) {
-                            placeholder.style.opacity = '0'
-                            setTimeout(() => {
-                              placeholder.style.display = 'none'
-                            }, 200)
-                          }
-                        }}
-                        onError={(e) => {
-                          console.error('❌ Error al cargar imagen:', {
-                            nombre: producto.nombre,
-                            imagenOriginal: producto.imagenOriginal,
-                            imagen: producto.imagen,
-                            src: e.currentTarget.src
-                          })
-                          // Si falla la carga de una imagen de Supabase, intentar recargar una vez
-                          const currentSrc = e.currentTarget.src
-                          if (currentSrc.includes('supabase.co')) {
-                            // Intentar recargar con un timestamp para evitar cache
-                            const baseUrl = currentSrc.split('?')[0]
-                            e.currentTarget.src = `${baseUrl}?t=${Date.now()}`
-                            return
-                          }
-                          // Si no es de Supabase o falla de nuevo, usar imagen por defecto
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-                        }}
+                      <ProductImage
+                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${imageCacheBuster[producto.nombre] || 0}-${producto.imagenOriginal || 'no-img'}`}
+                        producto={producto}
+                        refreshKey={refreshKey}
+                        cacheBuster={imageCacheBuster[producto.nombre] || Date.now()}
                       />
                     </div>
                     <CardHeader>
