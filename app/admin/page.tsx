@@ -611,17 +611,22 @@ export default function AdminPage() {
       setDialogProductoAbierto(false)
       setProductoEditando(null)
 
+      // ESPERAR un momento para asegurar que la BD se actualizó completamente
+      // Esto es crítico porque puede haber un pequeño delay en la actualización de la BD
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       // Forzar re-render inmediato antes de recargar
       setRefreshKey(prev => prev + 1)
 
       // Recargar productos desde la BD para asegurar que tenemos los datos más actualizados
       // Usar un timestamp único para evitar caché
       const timestamp = Date.now()
-      const productosResponse = await fetch(`/api/products?t=${timestamp}`, {
+      const productosResponse = await fetch(`/api/products?t=${timestamp}&_=${Date.now()}`, {
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
         },
       })
       
@@ -634,25 +639,43 @@ export default function AdminPage() {
         })
         
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          // Extraer imagen de BD: solo si es válida y no es de Unsplash
-          const imagenDeBD = p.imagen && 
-            typeof p.imagen === 'string' && 
-            p.imagen.trim() !== '' &&
-            !p.imagen.includes('unsplash.com')
-            ? p.imagen.trim()
-            : null
-          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+          // CRÍTICO: Si es el producto que acabamos de guardar, usar la imagen del producto guardado
+          // en lugar de la que viene de la BD (puede estar en caché)
+          let imagenDeBD: string | null = null
           
-          // Log específico para el producto que acabamos de guardar
           if (p.nombre === productoGuardado.nombre) {
-            console.log('🖼️ Producto actualizado encontrado en recarga:', {
-              nombre: p.nombre,
-              imagenBD: p.imagen,
-              imagenDeBD: imagenDeBD,
-              imagenParaMostrar: imagenParaMostrar,
-              imagenGuardada: productoGuardado.imagen
-            })
+            // Usar la imagen del producto guardado directamente
+            if (productoGuardado.imagen && 
+                typeof productoGuardado.imagen === 'string' && 
+                productoGuardado.imagen.trim() !== '' &&
+                !productoGuardado.imagen.includes('unsplash.com')) {
+              imagenDeBD = productoGuardado.imagen.trim()
+              console.log('✅ Usando imagen del producto guardado (no de BD):', {
+                nombre: p.nombre,
+                imagenBD: p.imagen,
+                imagenGuardada: productoGuardado.imagen,
+                usando: imagenDeBD
+              })
+            } else {
+              // Si no hay imagen guardada, usar la de la BD
+              imagenDeBD = p.imagen && 
+                typeof p.imagen === 'string' && 
+                p.imagen.trim() !== '' &&
+                !p.imagen.includes('unsplash.com')
+                ? p.imagen.trim()
+                : null
+            }
+          } else {
+            // Para otros productos, usar la imagen de la BD normalmente
+            imagenDeBD = p.imagen && 
+              typeof p.imagen === 'string' && 
+              p.imagen.trim() !== '' &&
+              !p.imagen.includes('unsplash.com')
+              ? p.imagen.trim()
+              : null
           }
+          
+          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
           return {
             id: index + 1,
