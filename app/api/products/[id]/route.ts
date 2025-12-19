@@ -63,14 +63,6 @@ export async function PUT(
       }
     }
 
-    // Preparar datos de actualización
-    const updateData: any = {
-      nombre,
-      categoria,
-      precio: parseFloat(precio),
-      stock: parseInt(stock),
-    }
-
     // Manejar imagen: si viene una URL válida, guardarla; si viene null o vacío, mantener null
     const imagenParaGuardar = imagen && imagen.trim() !== '' ? imagen.trim() : null
     
