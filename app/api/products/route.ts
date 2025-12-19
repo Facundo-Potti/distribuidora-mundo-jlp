@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     // Obtener TODOS los productos directamente de la BD sin caché
-    // Usar $queryRaw para evitar cualquier caché de Prisma y obtener datos 100% frescos
     const allProducts = await prisma.product.findMany({
       orderBy: {
         nombre: 'asc',
@@ -89,11 +88,42 @@ export async function GET() {
     let duplicadosEncontrados = 0
     
     productosPorNombre.forEach((productos, nombreNormalizado) => {
+      // SIEMPRE ordenar productos por updatedAt (más reciente primero), incluso si solo hay uno
+      // Esto asegura que si hay múltiples productos con el mismo nombre normalizado,
+      // se seleccione siempre el más recientemente actualizado
+      productos.sort((a, b) => {
+        // PRIORIDAD 1: updatedAt - El producto más recientemente actualizado es el correcto
+        if (a.updatedAt && b.updatedAt) {
+          const fechaA = new Date(a.updatedAt).getTime()
+          const fechaB = new Date(b.updatedAt).getTime()
+          if (fechaA !== fechaB) {
+            return fechaB - fechaA // Más reciente primero
+          }
+        }
+        // Si solo uno tiene updatedAt, ese es más reciente
+        if (a.updatedAt && !b.updatedAt) return -1
+        if (!a.updatedAt && b.updatedAt) return 1
+        
+        // PRIORIDAD 2: Timestamp de imagen (solo si updatedAt es igual o no disponible)
+        const timestampA = extractTimestamp(a.imagen)
+        const timestampB = extractTimestamp(b.imagen)
+        if (timestampA > 0 && timestampB > 0) {
+          return timestampB - timestampA // Más reciente primero
+        }
+        if (timestampA > 0) return -1
+        if (timestampB > 0) return 1
+        
+        // PRIORIDAD 3: ID (último recurso) - usar el ID más grande (más reciente)
+        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+        return idB - idA
+      })
+      
       if (productos.length === 1) {
-        // Solo hay uno, agregarlo directamente
+        // Solo hay uno, agregarlo directamente (ya está ordenado)
         productosSinDuplicados.push(productos[0])
       } else {
-        // Hay duplicados, tomar el que tenga la imagen más reciente
+        // Hay duplicados, tomar el que tenga la imagen más reciente (ya está ordenado)
         duplicadosEncontrados += productos.length - 1
         
         // Log para productos con duplicados (especialmente si contienen "Aceite" o "Girasol")
@@ -108,36 +138,6 @@ export async function GET() {
             }))
           )
         }
-        
-        // ORDENAR: Primero por updatedAt (más reciente primero), luego por timestamp de imagen, luego por ID
-        // Esto asegura que siempre se elija el producto que fue actualizado más recientemente
-        productos.sort((a, b) => {
-          // PRIORIDAD 1: updatedAt - El producto más recientemente actualizado es el correcto
-          if (a.updatedAt && b.updatedAt) {
-            const fechaA = new Date(a.updatedAt).getTime()
-            const fechaB = new Date(b.updatedAt).getTime()
-            if (fechaA !== fechaB) {
-              return fechaB - fechaA // Más reciente primero
-            }
-          }
-          // Si solo uno tiene updatedAt, ese es más reciente
-          if (a.updatedAt && !b.updatedAt) return -1
-          if (!a.updatedAt && b.updatedAt) return 1
-          
-          // PRIORIDAD 2: Timestamp de imagen (solo si updatedAt es igual o no disponible)
-          const timestampA = extractTimestamp(a.imagen)
-          const timestampB = extractTimestamp(b.imagen)
-          if (timestampA > 0 && timestampB > 0) {
-            return timestampB - timestampA // Más reciente primero
-          }
-          if (timestampA > 0) return -1
-          if (timestampB > 0) return 1
-          
-          // PRIORIDAD 3: ID (último recurso)
-          const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
-          const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
-          return idB - idA
-        })
         
         // Log del producto seleccionado
         if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol') || nombreNormalizado.includes('aceituna')) {

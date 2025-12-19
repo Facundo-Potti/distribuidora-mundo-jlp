@@ -85,6 +85,12 @@ export async function PUT(
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
     // ACTUALIZAR EL PRODUCTO DIRECTAMENTE POR ID
+    // Agregar updatedAt explícitamente para asegurar que se actualice
+    const updateDataConTimestamp = {
+      ...updateData,
+      updatedAt: new Date(), // Forzar actualización de updatedAt
+    }
+    
     console.log(`💾 Guardando producto completo en BD:`, {
       id: producto.id,
       nombre: updateData.nombre,
@@ -98,7 +104,7 @@ export async function PUT(
     
     const productoActualizado = await prisma.product.update({
       where: { id: producto.id },
-      data: updateData,
+      data: updateDataConTimestamp,
     })
 
     console.log(`✅ Producto actualizado en BD:`, {
