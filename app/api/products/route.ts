@@ -78,10 +78,18 @@ export async function GET() {
     })
     
     // Función para extraer timestamp del nombre del archivo
+    // El formato es: producto-[NOMBRE]-[TIMESTAMP].[extensión]
+    // Necesitamos capturar el último número antes de la extensión
     const extractTimestamp = (url: string | null): number => {
       if (!url || !url.includes('supabase.co')) return 0
-      const match = url.match(/producto-[^-]+-(\d+)\./i)
-      return match ? parseInt(match[1]) : 0
+      // Buscar el patrón: -[número].[extensión] al final de la URL
+      // Esto funciona incluso si el nombre tiene guiones en el medio
+      const match = url.match(/-(\d+)\.(jpg|jpeg|png|gif|webp|JPG|JPEG|PNG|GIF|WEBP)/i)
+      if (match && match[1]) {
+        const timestamp = parseInt(match[1])
+        return timestamp > 0 ? timestamp : 0
+      }
+      return 0
     }
     
     const productosSinDuplicados: typeof productosADevolver = []
@@ -139,28 +147,20 @@ export async function GET() {
           )
         }
         
-        // Log del producto seleccionado - SIEMPRE loggear para productos con "aceituna" o "girasol"
+        // Log del producto seleccionado - SIEMPRE loggear para productos con "aceite", "girasol" o "aceituna"
         if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol') || nombreNormalizado.includes('aceituna')) {
-          console.log(`🔍 DEBUG: Producto seleccionado para "${nombreNormalizado}":`, {
+          console.log(`🔍 DEBUG GET: Productos encontrados para "${nombreNormalizado}" (${productos.length} productos):`)
+          productos.forEach((p, idx) => {
+            console.log(`  [${idx}] ID: ${p.id}, Imagen: ${p.imagen || 'null'}, Timestamp: ${extractTimestamp(p.imagen)}, UpdatedAt: ${p.updatedAt?.toISOString() || 'null'}`)
+          })
+          console.log(`✅ DEBUG GET: Producto SELECCIONADO (índice 0 después de ordenar) para "${nombreNormalizado}":`, {
             id: productos[0].id,
             nombre: productos[0].nombre,
             imagen: productos[0].imagen || 'null',
             imagenCompleta: productos[0].imagen,
             timestamp: extractTimestamp(productos[0].imagen),
-            updatedAt: productos[0].updatedAt,
-            updatedAtISO: productos[0].updatedAt?.toISOString() || 'null'
+            updatedAt: productos[0].updatedAt?.toISOString() || 'null'
           })
-          console.log(`🔍 DEBUG: Todos los productos duplicados ANTES de ordenar:`, productos.map((p, idx) => ({
-            index: idx,
-            id: p.id,
-            nombre: p.nombre,
-            imagen: p.imagen || 'null',
-            imagenCompleta: p.imagen,
-            timestamp: extractTimestamp(p.imagen),
-            updatedAt: p.updatedAt?.toISOString() || 'null',
-            updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0,
-            activo: p.activo
-          })))
         }
         
         productosSinDuplicados.push(productos[0])
