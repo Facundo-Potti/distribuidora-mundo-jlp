@@ -730,10 +730,8 @@ export default function AdminPage() {
         console.log('🔄 Actualizando productos en estado:', {
           cantidad: nuevosProductos.length,
           productoActualizado: productoGuardado.nombre,
-          imagenOriginalProducto: nuevosProductos.find(p => {
-            const nombrePNorm = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-            return nombrePNorm === nombreProductoGuardadoNormalizado
-          })?.imagenOriginal
+          idProductoGuardado: idProductoGuardado,
+          imagenOriginalProducto: nuevosProductos.find(p => p.id === idProductoGuardado)?.imagenOriginal
         })
         
         // Actualizar estado de productos
@@ -759,10 +757,8 @@ export default function AdminPage() {
         
         console.log('🔄 Actualizando productos filtrados:', {
           cantidad: filtrados.length,
-          productoActualizadoEnFiltrados: filtrados.find(p => {
-            const nombrePNorm = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-            return nombrePNorm === nombreProductoGuardadoNormalizado
-          })?.imagenOriginal
+          idProductoGuardado: idProductoGuardado,
+          productoActualizadoEnFiltrados: filtrados.find(p => p.id === idProductoGuardado)?.imagenOriginal
         })
         
         setProductosFiltrados(filtrados)
