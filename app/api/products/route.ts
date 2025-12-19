@@ -5,6 +5,7 @@ export async function GET() {
   try {
     // Primero obtener todos los productos para debugging
     // Usar findMany sin caché para asegurar datos frescos
+    // Incluir updatedAt para poder ordenar por fecha de actualización
     const allProducts = await prisma.product.findMany({
       orderBy: {
         nombre: 'asc',
@@ -14,18 +15,20 @@ export async function GET() {
     
     console.log(`📦 API /products: Total productos en BD: ${allProducts.length}`)
     
-    // Log específico para productos que contengan "Aceite" o "Girasol"
+    // Log específico para productos que contengan "Aceite", "Girasol" o "Aceituna"
     const productosAceite = allProducts.filter(p => 
       p.nombre.toLowerCase().includes('aceite') || 
-      p.nombre.toLowerCase().includes('girasol')
+      p.nombre.toLowerCase().includes('girasol') ||
+      p.nombre.toLowerCase().includes('aceituna')
     )
     if (productosAceite.length > 0) {
-      console.log(`🔍 Productos relacionados con "Aceite" o "Girasol": ${productosAceite.length}`, 
+      console.log(`🔍 Productos relacionados con "Aceite", "Girasol" o "Aceituna": ${productosAceite.length}`, 
         productosAceite.map(p => ({
           id: p.id,
           nombre: p.nombre,
-          imagen: p.imagen ? p.imagen.substring(0, 100) + '...' : null,
-          activo: p.activo
+          imagen: p.imagen || 'null',
+          activo: p.activo,
+          updatedAt: p.updatedAt
         }))
       )
     }
@@ -108,34 +111,53 @@ export async function GET() {
           )
         }
         
-        // Ordenar por timestamp de imagen (más reciente primero), luego por ID
+        // Ordenar por timestamp de imagen (más reciente primero), luego por updatedAt, luego por ID
         productos.sort((a, b) => {
           const timestampA = extractTimestamp(a.imagen)
           const timestampB = extractTimestamp(b.imagen)
           
-          // Si ambos tienen timestamps, usar esos
+          // Si ambos tienen timestamps, usar esos (más reciente primero)
           if (timestampA > 0 && timestampB > 0) {
-            return timestampB - timestampA // Más reciente primero
+            return timestampB - timestampA
           }
           
           // Si solo uno tiene timestamp, ese es más reciente
           if (timestampA > 0) return -1
           if (timestampB > 0) return 1
           
-          // Si ninguno tiene timestamp, usar ID como fallback
+          // Si ninguno tiene timestamp, usar updatedAt como fallback (más reciente primero)
+          if (a.updatedAt && b.updatedAt) {
+            const fechaA = new Date(a.updatedAt).getTime()
+            const fechaB = new Date(b.updatedAt).getTime()
+            if (fechaA !== fechaB) {
+              return fechaB - fechaA
+            }
+          }
+          
+          // Si updatedAt no está disponible o es igual, usar ID como último fallback
           const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
           const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
           return idB - idA
         })
         
         // Log del producto seleccionado
-        if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol')) {
+        if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol') || nombreNormalizado.includes('aceituna')) {
           console.log(`✅ Producto seleccionado para "${nombreNormalizado}":`, {
             id: productos[0].id,
             nombre: productos[0].nombre,
             imagen: productos[0].imagen || 'null',
-            timestamp: extractTimestamp(productos[0].imagen)
+            timestamp: extractTimestamp(productos[0].imagen),
+            updatedAt: productos[0].updatedAt
           })
+          console.log(`📊 Comparación de todos los productos duplicados:`, productos.map((p, idx) => ({
+            index: idx,
+            id: p.id,
+            nombre: p.nombre,
+            imagen: p.imagen || 'null',
+            timestamp: extractTimestamp(p.imagen),
+            updatedAt: p.updatedAt,
+            activo: p.activo
+          })))
         }
         
         productosSinDuplicados.push(productos[0])

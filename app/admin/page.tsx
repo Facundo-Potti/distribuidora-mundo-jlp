@@ -650,23 +650,29 @@ export default function AdminPage() {
           imagenProductoGuardado: productoGuardado.imagen
         })
         
+        // Normalizar nombre del producto guardado para comparación
+        const nombreProductoGuardadoNormalizado = productoGuardado.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+        
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
           // CRÍTICO: Si es el producto que acabamos de guardar, usar la imagen del producto guardado
-          // en lugar de la que viene de la BD (puede estar en caché)
+          // Usar comparación normalizada para encontrar el producto correcto
+          const nombrePNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+          const esProductoGuardado = nombrePNormalizado === nombreProductoGuardadoNormalizado
+          
           let imagenDeBD: string | null = null
           
-          if (p.nombre === productoGuardado.nombre) {
-            // Usar la imagen del producto guardado directamente
+          if (esProductoGuardado) {
+            // SIEMPRE usar la imagen del producto guardado directamente para este producto
             if (productoGuardado.imagen && 
                 typeof productoGuardado.imagen === 'string' && 
                 productoGuardado.imagen.trim() !== '' &&
                 !productoGuardado.imagen.includes('unsplash.com')) {
               imagenDeBD = productoGuardado.imagen.trim()
-              console.log('✅ Usando imagen del producto guardado (no de BD):', {
+              console.log('✅ USANDO IMAGEN DEL PRODUCTO GUARDADO:', {
                 nombre: p.nombre,
-                imagenBD: p.imagen,
+                imagenBDAnterior: p.imagen,
                 imagenGuardada: productoGuardado.imagen,
-                usando: imagenDeBD
+                imagenFinal: imagenDeBD
               })
             } else {
               // Si no hay imagen guardada, usar la de la BD
@@ -696,7 +702,7 @@ export default function AdminPage() {
             precio: p.precio,
             stock: p.stock || 0,
             imagen: imagenParaMostrar,
-            imagenOriginal: imagenDeBD,
+            imagenOriginal: imagenDeBD, // CRÍTICO: Establecer imagenOriginal con la imagen correcta
             descripcion: p.descripcion || "",
             unidad: p.unidad || "",
           }
@@ -704,8 +710,22 @@ export default function AdminPage() {
         
         console.log('✅ Productos formateados después de guardar:', productosFormateados.length)
         
-        // FORZAR ACTUALIZACIÓN COMPLETA - Crear nuevos arrays y objetos
-        const nuevosProductos = productosFormateados.map(p => ({ ...p }))
+        // FORZAR ACTUALIZACIÓN COMPLETA - Crear nuevos arrays y objetos completamente nuevos
+        const nuevosProductos = productosFormateados.map(p => ({ 
+          ...p,
+          // Forzar nuevas referencias para asegurar que React detecte el cambio
+          imagenOriginal: p.imagenOriginal ? String(p.imagenOriginal) : null,
+          imagen: String(p.imagen)
+        }))
+        
+        console.log('🔄 Actualizando productos en estado:', {
+          cantidad: nuevosProductos.length,
+          productoActualizado: productoGuardado.nombre,
+          imagenOriginalProducto: nuevosProductos.find(p => {
+            const nombrePNorm = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+            return nombrePNorm === nombreProductoGuardadoNormalizado
+          })?.imagenOriginal
+        })
         
         // Actualizar estado de productos
         setProductos(nuevosProductos)
@@ -728,13 +748,17 @@ export default function AdminPage() {
         const newRefreshKey = Date.now()
         
         // Actualizar cache buster específico para el producto guardado ANTES de actualizar refreshKey
+        // Usar el nombre normalizado para asegurar que se actualice correctamente
+        const nombreParaCacheBuster = productoGuardado.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
         if (productoGuardado.nombre) {
           const newCacheBuster = Date.now()
           console.log('🔄 Actualizando cache buster para', productoGuardado.nombre, ':', newCacheBuster)
           setImageCacheBuster(prev => {
+            // Actualizar tanto con el nombre original como con el normalizado
             const nuevo = {
               ...prev,
-              [productoGuardado.nombre]: newCacheBuster
+              [productoGuardado.nombre]: newCacheBuster,
+              [nombreParaCacheBuster]: newCacheBuster
             }
             console.log('🔄 Nuevo cache buster state:', nuevo)
             return nuevo
@@ -743,6 +767,11 @@ export default function AdminPage() {
         
         // Actualizar refreshKey después de actualizar cache buster
         setRefreshKey(newRefreshKey)
+        
+        // Forzar un segundo update después de un pequeño delay para asegurar que React detecte todos los cambios
+        setTimeout(() => {
+          setRefreshKey(prev => prev + 1)
+        }, 100)
         
         console.log('🔄 Estado actualizado completamente:', {
           refreshKey: newRefreshKey,
@@ -1262,12 +1291,19 @@ export default function AdminPage() {
                       <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-0">
                         <div className="w-12 h-12 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
                       </div>
-                      <ProductImage
-                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${imageCacheBuster[producto.nombre] || 0}-${producto.imagenOriginal || 'no-img'}`}
-                        producto={producto}
-                        refreshKey={refreshKey}
-                        cacheBuster={imageCacheBuster[producto.nombre] || 0}
-                      />
+                      {(() => {
+                        // Buscar cache buster tanto con nombre original como normalizado
+                        const nombreNormalizado = producto.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+                        const cacheBusterValue = imageCacheBuster[producto.nombre] || imageCacheBuster[nombreNormalizado] || 0
+                        return (
+                          <ProductImage
+                            key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${cacheBusterValue}-${producto.imagenOriginal || 'no-img'}`}
+                            producto={producto}
+                            refreshKey={refreshKey}
+                            cacheBuster={cacheBusterValue}
+                          />
+                        )
+                      })()}
                     </div>
                     <CardHeader>
                       <div className="flex items-start justify-between">
