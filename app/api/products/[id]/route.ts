@@ -84,26 +84,40 @@ export async function PUT(
     updateData.descripcion = descripcion && descripcion.trim() !== '' ? descripcion.trim() : null
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
-    // ACTUALIZAR EL PRODUCTO DIRECTAMENTE POR ID
-    // NO forzar updatedAt - Prisma lo maneja automáticamente con @updatedAt
-    // Si intentamos forzarlo manualmente, podría causar conflictos
-    const updateDataConTimestamp = updateData
+    // CRÍTICO: Actualizar TODOS los productos con el mismo nombre normalizado
+    // Esto asegura que cuando el GET seleccione uno, todos tengan la misma imagen actualizada
+    const nombreNormalizado = nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+    
+    // Buscar TODOS los productos con el mismo nombre normalizado
+    const todosLosProductos = await prisma.product.findMany()
+    const productosParaActualizar = todosLosProductos.filter(p => {
+      const nombrePNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+      return nombrePNormalizado === nombreNormalizado
+    })
     
     console.log(`💾 Guardando producto completo en BD:`, {
-      id: producto.id,
-      nombre: updateData.nombre,
-      categoria: updateData.categoria,
-      precio: updateData.precio,
-      stock: updateData.stock,
-      imagen: updateData.imagen || 'null',
-      descripcion: updateData.descripcion || 'null',
-      unidad: updateData.unidad || 'null'
+      productoEncontrado: { id: producto.id, nombre: producto.nombre },
+      productosParaActualizar: productosParaActualizar.length,
+      idsProductosParaActualizar: productosParaActualizar.map(p => p.id),
+      datosActualizacion: {
+        nombre: updateData.nombre,
+        categoria: updateData.categoria,
+        precio: updateData.precio,
+        stock: updateData.stock,
+        imagen: updateData.imagen || 'null',
+      }
     })
     
-    const productoActualizado = await prisma.product.update({
-      where: { id: producto.id },
-      data: updateDataConTimestamp,
-    })
+    // Actualizar TODOS los productos con el mismo nombre normalizado
+    const updates = productosParaActualizar.map(p => 
+      prisma.product.update({
+        where: { id: p.id },
+        data: updateData,
+      })
+    )
+    
+    const productosActualizados = await Promise.all(updates)
+    const productoActualizado = productosActualizados[0] // Devolver el primero como referencia
 
     console.log(`✅ Producto actualizado en BD:`, {
       id: productoActualizado.id,
