@@ -57,8 +57,23 @@ export async function GET() {
         nombre: p.nombre,
         categoria: p.categoria,
         activo: p.activo,
-        tieneImagen: !!p.imagen
+        tieneImagen: !!p.imagen,
+        imagen: p.imagen ? p.imagen.substring(0, 100) + '...' : null
       })))
+    }
+    
+    // Verificar si hay productos duplicados por nombre (esto podría causar problemas)
+    const nombres = productosADevolver.map(p => p.nombre)
+    const nombresDuplicados = nombres.filter((nombre, index) => nombres.indexOf(nombre) !== index)
+    if (nombresDuplicados.length > 0) {
+      console.warn('⚠️ ADVERTENCIA: Hay productos con nombres duplicados:', nombresDuplicados)
+      nombresDuplicados.forEach(nombre => {
+        const productosDuplicados = productosADevolver.filter(p => p.nombre === nombre)
+        console.warn(`⚠️ Producto "${nombre}" aparece ${productosDuplicados.length} veces:`, productosDuplicados.map(p => ({
+          id: p.id,
+          imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null
+        })))
+      })
     }
 
     // Agregar headers para evitar cache

@@ -269,11 +269,16 @@ export default function AdminPage() {
           // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
-          // Log para productos con imágenes de Supabase
-          if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
-            console.log(`🖼️ Producto con imagen Supabase: ${p.nombre}`, {
-              imagenBD: imagenDeBD,
-              imagenParaMostrar: imagenParaMostrar
+          // Log detallado para productos específicos (para debugging de imágenes)
+          // Buscar productos con nombres conocidos que puedan tener problemas
+          const nombresParaDebug = ['Aceite de Girasol', 'Aceite']
+          if (nombresParaDebug.some(n => p.nombre.includes(n))) {
+            console.log(`🔍 DEBUG Producto: ${p.nombre}`, {
+              imagenBD: p.imagen,
+              imagenDeBD: imagenDeBD,
+              imagenParaMostrar: imagenParaMostrar,
+              tieneImagen: !!p.imagen,
+              tipoImagen: typeof p.imagen
             })
           }
           

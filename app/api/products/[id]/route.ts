@@ -71,7 +71,12 @@ export async function PUT(
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
     console.log('📝 Datos a actualizar:', updateData)
-    console.log('🔍 Producto encontrado:', { id: producto.id, nombre: producto.nombre, imagenActual: producto.imagen })
+    console.log('🔍 Producto encontrado:', { 
+      id: producto.id, 
+      nombre: producto.nombre, 
+      imagenActual: producto.imagen,
+      imagenNueva: updateData.imagen
+    })
 
     // Actualizar el producto
     const productoActualizado = await prisma.product.update({
@@ -84,8 +89,29 @@ export async function PUT(
       nombre: productoActualizado.nombre,
       imagen: productoActualizado.imagen,
       imagenEsNull: productoActualizado.imagen === null,
-      imagenEsVacio: productoActualizado.imagen === ''
+      imagenEsVacio: productoActualizado.imagen === '',
+      imagenCompleta: productoActualizado.imagen
     })
+
+    // VERIFICAR que realmente se guardó correctamente haciendo una consulta fresca
+    const productoVerificado = await prisma.product.findUnique({
+      where: { id: producto.id },
+    })
+
+    console.log('🔍 Verificación post-actualización:', {
+      id: productoVerificado?.id,
+      nombre: productoVerificado?.nombre,
+      imagenVerificada: productoVerificado?.imagen,
+      coincide: productoVerificado?.imagen === updateData.imagen
+    })
+
+    // Si la verificación no coincide, hay un problema
+    if (productoVerificado && productoVerificado.imagen !== updateData.imagen && updateData.imagen !== null) {
+      console.error('❌ ERROR: La imagen no se guardó correctamente en la BD!', {
+        esperada: updateData.imagen,
+        obtenida: productoVerificado.imagen
+      })
+    }
 
     return NextResponse.json(productoActualizado)
   } catch (error: any) {
