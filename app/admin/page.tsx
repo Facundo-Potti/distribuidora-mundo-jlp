@@ -55,27 +55,37 @@ const ProductImage = ({ producto, refreshKey, cacheBuster }: { producto: Product
         producto.imagenOriginal.includes('supabase.co') &&
         !producto.imagenOriginal.includes('unsplash.com')) {
       // Agregar timestamp único para evitar caché del navegador
-      const url = producto.imagenOriginal
-      const separator = url.includes('?') ? '&' : '?'
+      // Usar tanto refreshKey como cacheBuster para forzar actualización
+      const url = producto.imagenOriginal.split('?')[0] // Remover query params existentes
       const timestamp = Date.now()
-      return `${url}${separator}t=${timestamp}&r=${refreshKey}&c=${cacheBuster}`
+      return `${url}?t=${timestamp}&r=${refreshKey}&c=${cacheBuster}&v=${timestamp}`
     }
     // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
     if (producto.imagen && 
         typeof producto.imagen === 'string' &&
         producto.imagen.includes('supabase.co') &&
         !producto.imagen.includes('unsplash.com')) {
-      const url = producto.imagen
-      const separator = url.includes('?') ? '&' : '?'
+      const url = producto.imagen.split('?')[0] // Remover query params existentes
       const timestamp = Date.now()
-      return `${url}${separator}t=${timestamp}&r=${refreshKey}&c=${cacheBuster}`
+      return `${url}?t=${timestamp}&r=${refreshKey}&c=${cacheBuster}&v=${timestamp}`
     }
     // Prioridad 3: imagen por defecto (Unsplash)
     return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
   }
 
   // SIEMPRE usar la URL calculada directamente, sin estado intermedio
+  // Recalcular en cada render para asegurar que use los valores más recientes
   const imageSrc = getImageUrl()
+  
+  // Log para debugging (solo en desarrollo)
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    console.log(`🖼️ ProductImage render para ${producto.nombre}:`, {
+      imagenOriginal: producto.imagenOriginal,
+      refreshKey,
+      cacheBuster,
+      imageSrc: imageSrc.substring(0, 100) + '...'
+    })
+  }
 
   return (
     <img
@@ -730,8 +740,13 @@ export default function AdminPage() {
         // Actualizar estado de productos
         setProductos(nuevosProductos)
         
-        // Actualizar productos filtrados
-        let filtrados = nuevosProductos.map(p => ({ ...p }))
+        // Actualizar productos filtrados - Asegurar nuevas referencias
+        let filtrados = nuevosProductos.map(p => ({ 
+          ...p,
+          // Forzar nuevas referencias también en filtrados
+          imagenOriginal: p.imagenOriginal ? String(p.imagenOriginal) : null,
+          imagen: String(p.imagen)
+        }))
         if (busquedaProductos) {
           filtrados = filtrados.filter(
             (p) =>
@@ -742,6 +757,15 @@ export default function AdminPage() {
         if (categoriaFiltro) {
           filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
         }
+        
+        console.log('🔄 Actualizando productos filtrados:', {
+          cantidad: filtrados.length,
+          productoActualizadoEnFiltrados: filtrados.find(p => {
+            const nombrePNorm = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+            return nombrePNorm === nombreProductoGuardadoNormalizado
+          })?.imagenOriginal
+        })
+        
         setProductosFiltrados(filtrados)
         
         // FORZAR RE-RENDER COMPLETO con timestamp único
@@ -1295,9 +1319,13 @@ export default function AdminPage() {
                         // Buscar cache buster tanto con nombre original como normalizado
                         const nombreNormalizado = producto.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
                         const cacheBusterValue = imageCacheBuster[producto.nombre] || imageCacheBuster[nombreNormalizado] || 0
+                        // Crear un key único que incluya la imagen original para forzar re-render cuando cambie
+                        const imageKey = producto.imagenOriginal ? 
+                          `${producto.imagenOriginal}-${cacheBusterValue}` : 
+                          `no-img-${cacheBusterValue}`
                         return (
                           <ProductImage
-                            key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${cacheBusterValue}-${producto.imagenOriginal || 'no-img'}`}
+                            key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${imageKey}`}
                             producto={producto}
                             refreshKey={refreshKey}
                             cacheBuster={cacheBusterValue}
