@@ -88,13 +88,27 @@ export async function PUT(
       data: updateData,
     })
 
-    // Esperar un momento para que la BD procese la transacción
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    // Verificar que realmente se guardó correctamente
+    // Verificar inmediatamente que se guardó correctamente
+    // Usar findUnique para obtener el producto actualizado directamente
     const productoVerificado = await prisma.product.findUnique({
       where: { id: producto.id },
     })
+
+    // Si la imagen no coincide, forzar una actualización directa
+    if (productoVerificado && updateData.imagen !== null && productoVerificado.imagen !== updateData.imagen) {
+      // Forzar actualización directa de la imagen
+      await prisma.product.update({
+        where: { id: producto.id },
+        data: { imagen: updateData.imagen },
+      })
+      
+      // Obtener el producto actualizado nuevamente
+      const productoFinal = await prisma.product.findUnique({
+        where: { id: producto.id },
+      })
+      
+      return NextResponse.json(productoFinal || productoActualizado)
+    }
 
     return NextResponse.json(productoVerificado || productoActualizado)
   } catch (error: any) {
