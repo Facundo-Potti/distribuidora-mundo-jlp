@@ -119,11 +119,8 @@ export async function GET() {
       }
     })
     
-    // SIEMPRE devolver productos sin duplicados (aunque no haya duplicados, el proceso de agrupación asegura consistencia)
-    productosADevolver = productosSinDuplicados
-
     // Agregar headers para evitar cache
-    return NextResponse.json(productosADevolver, {
+    return NextResponse.json(productosSinDuplicados, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         'Pragma': 'no-cache',
