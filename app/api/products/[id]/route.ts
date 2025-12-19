@@ -93,27 +93,63 @@ export async function PUT(
       imagenCompleta: productoActualizado.imagen
     })
 
+    // FORZAR un refresh de Prisma para asegurar que los cambios se persisten
+    // Esperar un momento para que la BD procese la transacción
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     // VERIFICAR que realmente se guardó correctamente haciendo una consulta fresca
-    const productoVerificado = await prisma.product.findUnique({
-      where: { id: producto.id },
+    // Usar findFirst con el nombre para evitar problemas de caché
+    const productoVerificado = await prisma.product.findFirst({
+      where: { 
+        nombre: productoActualizado.nombre,
+        id: producto.id
+      },
     })
 
     console.log('🔍 Verificación post-actualización:', {
       id: productoVerificado?.id,
       nombre: productoVerificado?.nombre,
       imagenVerificada: productoVerificado?.imagen,
-      coincide: productoVerificado?.imagen === updateData.imagen
+      imagenEsperada: updateData.imagen,
+      coincide: productoVerificado?.imagen === updateData.imagen,
+      imagenCompletaVerificada: productoVerificado?.imagen
     })
 
-    // Si la verificación no coincide, hay un problema
+    // Si la verificación no coincide, intentar una segunda verificación después de más tiempo
     if (productoVerificado && productoVerificado.imagen !== updateData.imagen && updateData.imagen !== null) {
-      console.error('❌ ERROR: La imagen no se guardó correctamente en la BD!', {
-        esperada: updateData.imagen,
-        obtenida: productoVerificado.imagen
+      console.warn('⚠️ Primera verificación falló, esperando más tiempo...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const productoVerificado2 = await prisma.product.findFirst({
+        where: { 
+          nombre: productoActualizado.nombre,
+          id: producto.id
+        },
       })
+      
+      console.log('🔍 Segunda verificación:', {
+        id: productoVerificado2?.id,
+        nombre: productoVerificado2?.nombre,
+        imagenVerificada: productoVerificado2?.imagen,
+        coincide: productoVerificado2?.imagen === updateData.imagen
+      })
+      
+      if (productoVerificado2 && productoVerificado2.imagen !== updateData.imagen && updateData.imagen !== null) {
+        console.error('❌ ERROR: La imagen NO se guardó correctamente en la BD después de múltiples intentos!', {
+          esperada: updateData.imagen,
+          obtenidaPrimera: productoVerificado?.imagen,
+          obtenidaSegunda: productoVerificado2.imagen
+        })
+        // Devolver el producto actualizado de todos modos, pero con advertencia
+      } else {
+        console.log('✅ Segunda verificación exitosa, la imagen se guardó correctamente')
+        // Usar el producto verificado en lugar del actualizado
+        return NextResponse.json(productoVerificado2 || productoActualizado)
+      }
     }
 
-    return NextResponse.json(productoActualizado)
+    // Devolver el producto verificado si está disponible y coincide, sino el actualizado
+    return NextResponse.json(productoVerificado && productoVerificado.imagen === updateData.imagen ? productoVerificado : productoActualizado)
   } catch (error: any) {
     console.error('Error al actualizar producto:', error)
     return NextResponse.json(

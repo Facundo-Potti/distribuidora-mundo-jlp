@@ -4,10 +4,12 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     // Primero obtener todos los productos para debugging
+    // Usar findMany sin caché para asegurar datos frescos
     const allProducts = await prisma.product.findMany({
       orderBy: {
         nombre: 'asc',
       },
+      // No usar caché - siempre obtener datos frescos de la BD
     })
     
     console.log(`📦 API /products: Total productos en BD: ${allProducts.length}`)
@@ -71,9 +73,50 @@ export async function GET() {
         const productosDuplicados = productosADevolver.filter(p => p.nombre === nombre)
         console.warn(`⚠️ Producto "${nombre}" aparece ${productosDuplicados.length} veces:`, productosDuplicados.map(p => ({
           id: p.id,
-          imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null
+          imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null,
+          activo: p.activo
         })))
       })
+      
+      // Si hay duplicados, tomar solo el más reciente (mayor ID) o el activo
+      const productosSinDuplicados = productosADevolver.filter((p, index, self) => {
+        const firstIndex = self.findIndex(prod => prod.nombre === p.nombre)
+        if (firstIndex === index) {
+          // Es el primero, verificar si hay otros con el mismo nombre
+          const duplicados = self.filter(prod => prod.nombre === p.nombre)
+          if (duplicados.length > 1) {
+            // Si hay duplicados, tomar el que tenga imagen más reciente o el activo
+            const conImagen = duplicados.filter(prod => prod.imagen)
+            if (conImagen.length > 0) {
+              // Ordenar por ID descendente para tomar el más reciente
+              conImagen.sort((a, b) => b.id - a.id)
+              return conImagen[0].id === p.id
+            }
+            // Si no hay con imagen, tomar el activo o el más reciente
+            const activos = duplicados.filter(prod => prod.activo !== false)
+            if (activos.length > 0) {
+              activos.sort((a, b) => b.id - a.id)
+              return activos[0].id === p.id
+            }
+            // Si no hay activos, tomar el más reciente
+            duplicados.sort((a, b) => b.id - a.id)
+            return duplicados[0].id === p.id
+          }
+          return true
+        }
+        return false
+      })
+      
+      if (productosSinDuplicados.length < productosADevolver.length) {
+        console.log(`🔧 Filtrando duplicados: ${productosADevolver.length} -> ${productosSinDuplicados.length}`)
+        return NextResponse.json(productosSinDuplicados, {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        })
+      }
     }
 
     // Agregar headers para evitar cache

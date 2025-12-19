@@ -213,9 +213,16 @@ export default function AdminPage() {
       try {
         console.log('🔄 Iniciando carga de productos desde BD...')
         
-        // Agregar timestamp para evitar cache del navegador
-        const response = await fetch(`/api/products?t=${Date.now()}`, {
+        // Agregar timestamp único para evitar cache del navegador
+        // Usar múltiples parámetros para forzar que no use caché
+        const timestamp = Date.now()
+        const response = await fetch(`/api/products?t=${timestamp}&_=${timestamp}&nocache=${Math.random()}`, {
           cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
         })
         
         console.log('📡 Respuesta de API:', {
