@@ -89,17 +89,30 @@ export async function GET() {
             const conImagen = duplicados.filter(prod => prod.imagen)
             if (conImagen.length > 0) {
               // Ordenar por ID descendente para tomar el más reciente
-              conImagen.sort((a, b) => b.id - a.id)
+              // Convertir ID a número para la comparación
+              conImagen.sort((a, b) => {
+                const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+                const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+                return idB - idA
+              })
               return conImagen[0].id === p.id
             }
             // Si no hay con imagen, tomar el activo o el más reciente
             const activos = duplicados.filter(prod => prod.activo !== false)
             if (activos.length > 0) {
-              activos.sort((a, b) => b.id - a.id)
+              activos.sort((a, b) => {
+                const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+                const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+                return idB - idA
+              })
               return activos[0].id === p.id
             }
             // Si no hay activos, tomar el más reciente
-            duplicados.sort((a, b) => b.id - a.id)
+            duplicados.sort((a, b) => {
+              const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+              const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+              return idB - idA
+            })
             return duplicados[0].id === p.id
           }
           return true
