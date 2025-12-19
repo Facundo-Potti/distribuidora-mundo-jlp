@@ -81,10 +81,37 @@ export async function GET() {
       const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
       if (!productosUnicos.has(nombreNormalizado)) {
         productosUnicos.set(nombreNormalizado, p)
+      } else {
+        // Si ya existe, comparar updatedAt y quedarse con el más reciente
+        const existente = productosUnicos.get(nombreNormalizado)!
+        if (p.updatedAt && existente.updatedAt) {
+          const fechaP = new Date(p.updatedAt).getTime()
+          const fechaExistente = new Date(existente.updatedAt).getTime()
+          if (fechaP > fechaExistente) {
+            productosUnicos.set(nombreNormalizado, p)
+            console.log(`🔄 Reemplazando producto duplicado "${p.nombre}" (ID: ${existente.id} -> ${p.id}) porque tiene updatedAt más reciente`)
+          }
+        }
       }
     })
     
     productosADevolver = Array.from(productosUnicos.values())
+    
+    // Log para productos con "aceite" o "girasol"
+    const productosDebug = productosADevolver.filter(p => 
+      p.nombre.toLowerCase().includes('aceite') || 
+      p.nombre.toLowerCase().includes('girasol')
+    )
+    if (productosDebug.length > 0) {
+      console.log(`🔍 DEBUG GET: Productos con "aceite" o "girasol" que se devuelven:`, 
+        productosDebug.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          imagen: p.imagen ? p.imagen.substring(0, 100) + '...' : 'null',
+          updatedAt: p.updatedAt?.toISOString() || 'null'
+        }))
+      )
+    }
     
     console.log(`✅ Devolviendo ${productosADevolver.length} productos únicos (más reciente por nombre normalizado)`)
     

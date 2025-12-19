@@ -660,14 +660,13 @@ export default function AdminPage() {
           imagenProductoGuardado: productoGuardado.imagen
         })
         
-        // Normalizar nombre del producto guardado para comparación
-        const nombreProductoGuardadoNormalizado = productoGuardado.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
+        // CRÍTICO: Usar el ID para identificar el producto guardado, no el nombre
+        // Esto asegura que siempre encontremos el producto correcto incluso si hay duplicados
+        const idProductoGuardado = productoGuardado.id
         
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          // CRÍTICO: Si es el producto que acabamos de guardar, usar la imagen del producto guardado
-          // Usar comparación normalizada para encontrar el producto correcto
-          const nombrePNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-          const esProductoGuardado = nombrePNormalizado === nombreProductoGuardadoNormalizado
+          // CRÍTICO: Si es el producto que acabamos de guardar (por ID), usar la imagen del producto guardado
+          const esProductoGuardado = p.id === idProductoGuardado
           
           let imagenDeBD: string | null = null
           
@@ -877,7 +876,7 @@ export default function AdminPage() {
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
           return {
-            id: index + 1,
+            id: p.id, // USAR EL ID REAL DE LA BD
             nombre: p.nombre,
             categoria: p.categoria,
             precio: p.precio,
