@@ -14,6 +14,22 @@ export async function GET() {
     
     console.log(`📦 API /products: Total productos en BD: ${allProducts.length}`)
     
+    // Log específico para productos que contengan "Aceite" o "Girasol"
+    const productosAceite = allProducts.filter(p => 
+      p.nombre.toLowerCase().includes('aceite') || 
+      p.nombre.toLowerCase().includes('girasol')
+    )
+    if (productosAceite.length > 0) {
+      console.log(`🔍 Productos relacionados con "Aceite" o "Girasol": ${productosAceite.length}`, 
+        productosAceite.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          imagen: p.imagen ? p.imagen.substring(0, 100) + '...' : null,
+          activo: p.activo
+        }))
+      )
+    }
+    
     // Filtrar productos: incluir todos donde activo no sea explícitamente false
     // Esto incluye productos donde activo es true, null, o undefined
     const products = allProducts.filter(p => p.activo !== false)

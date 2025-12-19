@@ -29,12 +29,34 @@ export async function PUT(
     // Buscar el producto original por nombre
     const nombreBusqueda = nombreOriginal || nombre
     
+    console.log('🔍 Buscando producto:', {
+      nombreRecibido: nombre,
+      nombreOriginal: nombreOriginal,
+      nombreBusqueda: nombreBusqueda,
+      nombreBusquedaLength: nombreBusqueda.length,
+      nombreBusquedaEncoded: encodeURIComponent(nombreBusqueda)
+    })
+    
     // CRÍTICO: Buscar TODOS los productos con ese nombre para detectar duplicados
-    const productosConMismoNombre = await prisma.product.findMany({
+    // Intentar búsqueda exacta primero
+    let productosConMismoNombre = await prisma.product.findMany({
       where: { nombre: nombreBusqueda },
     })
     
+    // Si no encuentra con búsqueda exacta, intentar búsqueda case-insensitive
+    if (productosConMismoNombre.length === 0) {
+      console.warn('⚠️ No se encontró con búsqueda exacta, intentando case-insensitive...')
+      const todosLosProductos = await prisma.product.findMany()
+      productosConMismoNombre = todosLosProductos.filter(p => 
+        p.nombre.toLowerCase().trim() === nombreBusqueda.toLowerCase().trim()
+      )
+      console.log(`🔍 Productos encontrados (case-insensitive): ${productosConMismoNombre.length}`)
+    }
+    
     console.log(`🔍 Productos encontrados con nombre "${nombreBusqueda}":`, productosConMismoNombre.length)
+    if (productosConMismoNombre.length > 0) {
+      console.log('🔍 IDs encontrados:', productosConMismoNombre.map(p => ({ id: p.id, nombre: p.nombre, imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null })))
+    }
     
     if (productosConMismoNombre.length === 0) {
       return NextResponse.json(
