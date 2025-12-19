@@ -194,11 +194,16 @@ export function ImageUpload({
       
       console.log('✅ ImageUpload: Imagen subida exitosamente:', imageUrl)
       
-      // Actualizar preview y formulario inmediatamente
+      // Actualizar preview inmediatamente
       setPreview(imageUrl)
-      // Llamar al callback para actualizar el formulario padre
-      onImageUploaded(imageUrl)
       setError(null)
+      
+      // Llamar al callback para actualizar el formulario padre
+      // Usar setTimeout para asegurar que el estado se actualice
+      setTimeout(() => {
+        onImageUploaded(imageUrl)
+        console.log('✅ ImageUpload: Callback ejecutado con URL:', imageUrl)
+      }, 50)
     } catch (err: any) {
       console.error('Error al subir imagen:', err)
       const errorMessage = err.message || 'Error al subir la imagen. Verifica que Supabase Storage esté configurado.'

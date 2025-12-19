@@ -516,20 +516,36 @@ export default function AdminPage() {
         nombre: productoGuardado.nombre,
         imagen: productoGuardado.imagen,
         imagenEsNull: productoGuardado.imagen === null,
-        imagenEsString: typeof productoGuardado.imagen === 'string'
+        imagenEsString: typeof productoGuardado.imagen === 'string',
+        imagenCompleta: productoGuardado.imagen
       })
 
       // Cerrar el diálogo primero
       setDialogProductoAbierto(false)
       setProductoEditando(null)
 
+      // Forzar re-render inmediato antes de recargar
+      setRefreshKey(prev => prev + 1)
+
       // Recargar productos desde la BD para asegurar que tenemos los datos más actualizados
-      const productosResponse = await fetch(`/api/products?t=${Date.now()}`, {
+      // Usar un timestamp único para evitar caché
+      const timestamp = Date.now()
+      const productosResponse = await fetch(`/api/products?t=${timestamp}`, {
         cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
       })
       
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
+        console.log('🔄 Recargando productos después de guardar:', {
+          cantidad: productosData.length,
+          productoGuardado: productoGuardado.nombre,
+          imagenProductoGuardado: productoGuardado.imagen
+        })
+        
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
           // Extraer imagen de BD: solo si es válida y no es de Unsplash
           const imagenDeBD = p.imagen && 
@@ -539,6 +555,16 @@ export default function AdminPage() {
             ? p.imagen.trim()
             : null
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+          
+          // Log específico para el producto que acabamos de guardar
+          if (p.nombre === productoGuardado.nombre) {
+            console.log('🖼️ Producto actualizado encontrado en recarga:', {
+              nombre: p.nombre,
+              imagenBD: p.imagen,
+              imagenDeBD: imagenDeBD,
+              imagenParaMostrar: imagenParaMostrar
+            })
+          }
           
           return {
             id: index + 1,
@@ -553,10 +579,17 @@ export default function AdminPage() {
           }
         })
         
-        setProductos(productosFormateados)
+        console.log('✅ Productos formateados después de guardar:', productosFormateados.length)
+        
+        // Crear nuevos arrays para forzar actualización de React
+        const nuevosProductos = [...productosFormateados]
+        const nuevosProductosFiltrados = [...productosFormateados]
+        
+        // Actualizar estado de productos (usar spread para crear nueva referencia)
+        setProductos(nuevosProductos)
         
         // Actualizar productos filtrados
-        let filtrados = productosFormateados
+        let filtrados = nuevosProductosFiltrados
         if (busquedaProductos) {
           filtrados = filtrados.filter(
             (p) =>
@@ -567,10 +600,16 @@ export default function AdminPage() {
         if (categoriaFiltro) {
           filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
         }
-        setProductosFiltrados(filtrados)
+        setProductosFiltrados([...filtrados])
         
-        // Forzar re-render de imágenes
-        setRefreshKey(prev => prev + 1)
+        // Forzar re-render de imágenes con un nuevo timestamp
+        // Usar setTimeout para asegurar que el estado se actualice después del render
+        setTimeout(() => {
+          setRefreshKey(timestamp)
+          console.log('🔄 Estado actualizado, refreshKey:', timestamp)
+        }, 100)
+      } else {
+        console.error('❌ Error al recargar productos después de guardar:', productosResponse.statusText)
       }
     } catch (error: any) {
       console.error('Error al guardar producto:', error)
@@ -1070,15 +1109,19 @@ export default function AdminPage() {
                               typeof producto.imagenOriginal === 'string' &&
                               producto.imagenOriginal.includes('supabase.co') &&
                               !producto.imagenOriginal.includes('unsplash.com')) {
-                            // Usar la URL de Supabase directamente (ya es pública)
-                            return producto.imagenOriginal
+                            // Agregar timestamp para evitar caché del navegador
+                            const url = producto.imagenOriginal
+                            const separator = url.includes('?') ? '&' : '?'
+                            return `${url}${separator}t=${refreshKey}`
                           }
                           // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
                           if (producto.imagen && 
                               typeof producto.imagen === 'string' &&
                               producto.imagen.includes('supabase.co') &&
                               !producto.imagen.includes('unsplash.com')) {
-                            return producto.imagen
+                            const url = producto.imagen
+                            const separator = url.includes('?') ? '&' : '?'
+                            return `${url}${separator}t=${refreshKey}`
                           }
                           // Prioridad 3: imagen por defecto (Unsplash)
                           return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
@@ -1120,7 +1163,8 @@ export default function AdminPage() {
                           const currentSrc = e.currentTarget.src
                           if (currentSrc.includes('supabase.co')) {
                             // Intentar recargar con un timestamp para evitar cache
-                            e.currentTarget.src = `${currentSrc.split('?')[0]}?t=${Date.now()}`
+                            const baseUrl = currentSrc.split('?')[0]
+                            e.currentTarget.src = `${baseUrl}?t=${Date.now()}`
                             return
                           }
                           // Si no es de Supabase o falla de nuevo, usar imagen por defecto
