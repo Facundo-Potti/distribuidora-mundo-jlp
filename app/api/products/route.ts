@@ -135,9 +135,9 @@ export async function GET() {
         if (nombreNormalizado.includes('aceituna')) {
           console.log(`🔄 DEBUG GET: Productos duplicados para "${nombreNormalizado}" (${productos.length} productos):`)
           productos.forEach((p, idx) => {
-            console.log(`  [${idx}] ID: ${p.id}, updatedAt: ${p.updatedAt?.toISOString() || 'null'}, imagen: ${p.imagen || 'null'}`)
+            console.log(`  [${idx}] ID: ${p.id}, nombre: ${p.nombre}, updatedAt: ${p.updatedAt?.toISOString() || 'null'}, updatedAtTime: ${p.updatedAt ? new Date(p.updatedAt).getTime() : 0}, imagen: ${p.imagen || 'null'}`)
           })
-          console.log(`✅ Producto SELECCIONADO: ID=${productoSeleccionado.id}, updatedAt=${productoSeleccionado.updatedAt?.toISOString() || 'null'}, imagen=${productoSeleccionado.imagen || 'null'}`)
+          console.log(`✅ Producto SELECCIONADO (índice 0 después de ordenar): ID=${productoSeleccionado.id}, nombre=${productoSeleccionado.nombre}, updatedAt=${productoSeleccionado.updatedAt?.toISOString() || 'null'}, imagen=${productoSeleccionado.imagen || 'null'}`)
         }
       }
     })
@@ -155,12 +155,32 @@ export async function GET() {
         productosDebug.map(p => ({
           id: p.id,
           nombre: p.nombre,
+          nombreNormalizado: p.nombre.toLowerCase().trim().replace(/\s+/g, ' '),
           imagen: p.imagen || 'null',
           imagenCompleta: p.imagen,
           updatedAt: p.updatedAt?.toISOString() || 'null',
           updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0
         }))
       )
+    }
+    
+    // Log ESPECÍFICO para "ACEITUNA NEGRA N 0 X 5 KG"
+    const aceitunaNegra = productosADevolver.find(p => 
+      p.nombre.toLowerCase().includes('aceituna') && 
+      p.nombre.toLowerCase().includes('negra') &&
+      p.nombre.toLowerCase().includes('5 kg')
+    )
+    if (aceitunaNegra) {
+      console.log(`🎯 DEBUG GET ESPECÍFICO: ACEITUNA NEGRA N 0 X 5 KG encontrado:`, {
+        id: aceitunaNegra.id,
+        nombre: aceitunaNegra.nombre,
+        imagen: aceitunaNegra.imagen || 'null',
+        imagenCompleta: aceitunaNegra.imagen,
+        updatedAt: aceitunaNegra.updatedAt?.toISOString() || 'null',
+        updatedAtTime: aceitunaNegra.updatedAt ? new Date(aceitunaNegra.updatedAt).getTime() : 0
+      })
+    } else {
+      console.log(`⚠️ DEBUG GET ESPECÍFICO: ACEITUNA NEGRA N 0 X 5 KG NO ENCONTRADO en productos finales`)
     }
     
     console.log(`✅ Devolviendo ${productosADevolver.length} productos únicos (más reciente por nombre normalizado)`)

@@ -288,16 +288,18 @@ export default function AdminPage() {
             
           // Log detallado para productos específicos (para debugging de imágenes)
           // Buscar productos con nombres conocidos que puedan tener problemas
-          const nombresParaDebug = ['Aceite de Girasol', 'Aceite']
-          if (nombresParaDebug.some(n => p.nombre.includes(n))) {
+          const nombresParaDebug = ['Aceite de Girasol', 'Aceite', 'ACEITUNA NEGRA']
+          if (nombresParaDebug.some(n => p.nombre.toUpperCase().includes(n.toUpperCase()))) {
             console.log(`🔍 DEBUG Producto: ${p.nombre}`, {
+              id: p.id,
               imagenBD: p.imagen,
               imagenDeBD: imagenDeBD,
               imagenParaMostrar: imagenParaMostrar,
               tieneImagen: !!p.imagen,
-              tipoImagen: typeof p.imagen
+              tipoImagen: typeof p.imagen,
+              updatedAt: p.updatedAt
               })
-            }
+          }
             
             return {
             id: p.id, // USAR EL ID REAL DE LA BD, no index + 1
