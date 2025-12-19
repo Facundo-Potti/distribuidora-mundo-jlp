@@ -124,72 +124,114 @@ export default function AdminPage() {
   useEffect(() => {
     const cargarProductos = async () => {
       try {
+        console.log('🔄 Iniciando carga de productos desde BD...')
+        
         // Agregar timestamp para evitar cache del navegador
         const response = await fetch(`/api/products?t=${Date.now()}`, {
           cache: 'no-store',
         })
-        if (response.ok) {
-          const productosData = await response.json()
-          console.log('📥 Productos cargados desde BD:', productosData.length)
-          
-          // Convertir el formato de la base de datos al formato esperado por el componente
-          const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-            // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
-            let imagenDeBD: string | null = null
-            if (p.imagen !== null && 
-                p.imagen !== undefined && 
-                typeof p.imagen === 'string' && 
-                p.imagen.trim() !== '' &&
-                !p.imagen.includes('unsplash.com')) {
-              // Solo usar imágenes que no sean de Unsplash (imágenes guardadas)
-              imagenDeBD = p.imagen.trim()
-            }
-            
-            // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
-            const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-            
-            // Log para productos con imágenes de Supabase
-            if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
-              console.log(`🖼️ Producto con imagen Supabase: ${p.nombre}`, {
-                imagenBD: imagenDeBD,
-                imagenParaMostrar: imagenParaMostrar
-              })
-            }
-            
-            return {
-              id: index + 1,
-              nombre: p.nombre,
-              categoria: p.categoria,
-              precio: p.precio,
-              stock: p.stock || 0,
-              // imagen: URL para mostrar (puede ser de Supabase o por defecto)
-              imagen: imagenParaMostrar,
-              // imagenOriginal: URL real de la BD (null si no hay imagen guardada)
-              imagenOriginal: imagenDeBD,
-              descripcion: p.descripcion || "",
-              unidad: p.unidad || "",
-            }
+        
+        console.log('📡 Respuesta de API:', {
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
+          console.error('❌ Error al cargar productos:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
           })
-          
-          console.log(`✅ Productos cargados: ${productosFormateados.length}`)
-          const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
-          console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
-          
-          // Log de los primeros productos con imagen para verificar
-          if (productosConImagen.length > 0) {
-            console.log('📸 Primeros productos con imagen:', productosConImagen.slice(0, 3).map(p => ({
-              nombre: p.nombre,
-              imagenOriginal: p.imagenOriginal
-            })))
+          alert(`Error al cargar productos: ${errorData.error || response.statusText}`)
+          return
+        }
+        
+        const productosData = await response.json()
+        console.log('📥 Productos recibidos desde BD:', {
+          cantidad: productosData.length,
+          esArray: Array.isArray(productosData),
+          primeros3: productosData.slice(0, 3).map((p: any) => ({
+            nombre: p.nombre,
+            categoria: p.categoria,
+            activo: p.activo
+          }))
+        })
+        
+        // Verificar si es un array
+        if (!Array.isArray(productosData)) {
+          console.error('❌ La respuesta no es un array:', productosData)
+          alert('Error: La respuesta del servidor no es válida')
+          return
+        }
+        
+        // Convertir el formato de la base de datos al formato esperado por el componente
+        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+          // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
+          let imagenDeBD: string | null = null
+          if (p.imagen !== null && 
+              p.imagen !== undefined && 
+              typeof p.imagen === 'string' && 
+              p.imagen.trim() !== '' &&
+              !p.imagen.includes('unsplash.com')) {
+            // Solo usar imágenes que no sean de Unsplash (imágenes guardadas)
+            imagenDeBD = p.imagen.trim()
           }
           
-          setProductos(productosFormateados)
-          setProductosFiltrados(productosFormateados)
-        } else {
-          console.error('Error al cargar productos:', response.statusText)
+          // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
+          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+          
+          // Log para productos con imágenes de Supabase
+          if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
+            console.log(`🖼️ Producto con imagen Supabase: ${p.nombre}`, {
+              imagenBD: imagenDeBD,
+              imagenParaMostrar: imagenParaMostrar
+            })
+          }
+          
+          return {
+            id: index + 1,
+            nombre: p.nombre,
+            categoria: p.categoria,
+            precio: p.precio,
+            stock: p.stock || 0,
+            // imagen: URL para mostrar (puede ser de Supabase o por defecto)
+            imagen: imagenParaMostrar,
+            // imagenOriginal: URL real de la BD (null si no hay imagen guardada)
+            imagenOriginal: imagenDeBD,
+            descripcion: p.descripcion || "",
+            unidad: p.unidad || "",
+          }
+        })
+        
+        console.log(`✅ Productos formateados: ${productosFormateados.length}`)
+        const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
+        console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
+        
+        // Log de los primeros productos con imagen para verificar
+        if (productosConImagen.length > 0) {
+          console.log('📸 Primeros productos con imagen:', productosConImagen.slice(0, 3).map(p => ({
+            nombre: p.nombre,
+            imagenOriginal: p.imagenOriginal
+          })))
         }
-      } catch (error) {
-        console.error('Error al cargar productos:', error)
+        
+        // Si no hay productos, mostrar mensaje
+        if (productosFormateados.length === 0) {
+          console.warn('⚠️ No se encontraron productos en la base de datos')
+        }
+        
+        setProductos(productosFormateados)
+        setProductosFiltrados(productosFormateados)
+      } catch (error: any) {
+        console.error('❌ Error al cargar productos:', error)
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        })
+        alert(`Error al cargar productos: ${error.message || 'Error desconocido'}`)
       }
     }
 
