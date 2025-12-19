@@ -63,116 +63,37 @@ export async function GET() {
     }
 
     // Determinar qué productos devolver (en desarrollo, si no hay activos, devolver todos)
-    const productosADevolver = products.length > 0 ? products : (process.env.NODE_ENV === 'development' ? allProducts : [])
+    let productosADevolver = products.length > 0 ? products : (process.env.NODE_ENV === 'development' ? allProducts : [])
     
-    // SIEMPRE agrupar productos por nombre normalizado para evitar duplicados
-    // Esto asegura que si hay productos con el mismo nombre (exacto o similar), solo se devuelva uno
-    const productosPorNombre = new Map<string, typeof productosADevolver>()
+    // Filtrar duplicados: Si hay productos con el mismo nombre normalizado, tomar solo el más reciente (por updatedAt)
+    const productosUnicos = new Map<string, typeof productosADevolver[0]>()
     
     productosADevolver.forEach(p => {
       const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-      if (!productosPorNombre.has(nombreNormalizado)) {
-        productosPorNombre.set(nombreNormalizado, [])
-      }
-      productosPorNombre.get(nombreNormalizado)!.push(p)
-    })
-    
-    // Función para extraer timestamp del nombre del archivo
-    // El formato es: producto-[NOMBRE]-[TIMESTAMP].[extensión]
-    // Necesitamos capturar el último número antes de la extensión
-    const extractTimestamp = (url: string | null): number => {
-      if (!url || !url.includes('supabase.co')) return 0
-      // Buscar el patrón: -[número].[extensión] al final de la URL
-      // Esto funciona incluso si el nombre tiene guiones en el medio
-      const match = url.match(/-(\d+)\.(jpg|jpeg|png|gif|webp|JPG|JPEG|PNG|GIF|WEBP)/i)
-      if (match && match[1]) {
-        const timestamp = parseInt(match[1])
-        return timestamp > 0 ? timestamp : 0
-      }
-      return 0
-    }
-    
-    const productosSinDuplicados: typeof productosADevolver = []
-    let duplicadosEncontrados = 0
-    
-    productosPorNombre.forEach((productos, nombreNormalizado) => {
-      // SIEMPRE ordenar productos, PRIORIZANDO timestamp de imagen PRIMERO
-      // El timestamp de imagen es más confiable porque es único por cada subida de imagen
-      // Solo si no hay timestamp en la imagen, usar updatedAt como fallback
-      productos.sort((a, b) => {
-        // PRIORIDAD 1: Timestamp de imagen - El timestamp en el nombre del archivo es el más confiable
-        const timestampA = extractTimestamp(a.imagen)
-        const timestampB = extractTimestamp(b.imagen)
-        if (timestampA > 0 && timestampB > 0) {
-          return timestampB - timestampA // Más reciente primero (timestamp más grande = más reciente)
-        }
-        if (timestampA > 0) return -1 // Si solo A tiene timestamp, es más reciente
-        if (timestampB > 0) return 1  // Si solo B tiene timestamp, es más reciente
-        
-        // PRIORIDAD 2: updatedAt - Solo usar si no hay timestamp en imagen
-        if (a.updatedAt && b.updatedAt) {
-          const fechaA = new Date(a.updatedAt).getTime()
-          const fechaB = new Date(b.updatedAt).getTime()
-          if (fechaA !== fechaB) {
-            return fechaB - fechaA // Más reciente primero
-          }
-        }
-        // Si solo uno tiene updatedAt, ese es más reciente
-        if (a.updatedAt && !b.updatedAt) return -1
-        if (!a.updatedAt && b.updatedAt) return 1
-        
-        // PRIORIDAD 3: ID (último recurso) - usar el ID más grande (más reciente)
-        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
-        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
-        return idB - idA
-      })
+      const existente = productosUnicos.get(nombreNormalizado)
       
-      if (productos.length === 1) {
-        // Solo hay uno, agregarlo directamente (ya está ordenado)
-        productosSinDuplicados.push(productos[0])
+      if (!existente) {
+        productosUnicos.set(nombreNormalizado, p)
       } else {
-        // Hay duplicados, tomar el que tenga la imagen más reciente (ya está ordenado)
-        duplicadosEncontrados += productos.length - 1
-        
-        // Log para productos con duplicados (especialmente si contienen "Aceite" o "Girasol")
-        if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol')) {
-          console.log(`🔄 Productos duplicados encontrados para "${nombreNormalizado}": ${productos.length}`, 
-            productos.map(p => ({
-              id: p.id,
-              nombre: p.nombre,
-              imagen: p.imagen || 'null',
-              activo: p.activo,
-              timestamp: extractTimestamp(p.imagen)
-            }))
-          )
+        // Si ya existe uno, comparar updatedAt y quedarse con el más reciente
+        if (p.updatedAt && existente.updatedAt) {
+          const fechaP = new Date(p.updatedAt).getTime()
+          const fechaExistente = new Date(existente.updatedAt).getTime()
+          if (fechaP > fechaExistente) {
+            productosUnicos.set(nombreNormalizado, p)
+          }
+        } else if (p.updatedAt && !existente.updatedAt) {
+          productosUnicos.set(nombreNormalizado, p)
         }
-        
-        // Log del producto seleccionado - SIEMPRE loggear para productos con "aceite", "girasol" o "aceituna"
-        if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol') || nombreNormalizado.includes('aceituna')) {
-          console.log(`🔍 DEBUG GET: Productos encontrados para "${nombreNormalizado}" (${productos.length} productos):`)
-          productos.forEach((p, idx) => {
-            console.log(`  [${idx}] ID: ${p.id}, Imagen: ${p.imagen || 'null'}, Timestamp: ${extractTimestamp(p.imagen)}, UpdatedAt: ${p.updatedAt?.toISOString() || 'null'}`)
-          })
-          console.log(`✅ DEBUG GET: Producto SELECCIONADO (índice 0 después de ordenar) para "${nombreNormalizado}":`, {
-            id: productos[0].id,
-            nombre: productos[0].nombre,
-            imagen: productos[0].imagen || 'null',
-            imagenCompleta: productos[0].imagen,
-            timestamp: extractTimestamp(productos[0].imagen),
-            updatedAt: productos[0].updatedAt?.toISOString() || 'null'
-          })
-        }
-        
-        productosSinDuplicados.push(productos[0])
       }
     })
     
-    if (duplicadosEncontrados > 0) {
-      console.log(`⚠️ Total de productos duplicados encontrados: ${duplicadosEncontrados}`)
-    }
+    productosADevolver = Array.from(productosUnicos.values())
+    
+    console.log(`✅ Devolviendo ${productosADevolver.length} productos únicos (filtrados por nombre normalizado, más reciente por updatedAt)`)
     
     // Agregar headers para evitar cache
-    return NextResponse.json(productosSinDuplicados, {
+    return NextResponse.json(productosADevolver, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         'Pragma': 'no-cache',

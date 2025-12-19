@@ -20,29 +20,27 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { nombre, categoria, precio, stock, imagen, descripcion, unidad, nombreOriginal } = body
+    const { nombre, categoria, precio, stock, imagen, descripcion, unidad } = body
 
-    // Buscar el producto por nombre (usar nombreOriginal si existe, sino el nombre actual)
-    const nombreBusqueda = nombreOriginal || nombre
+    // params.id puede ser un ID real o un nombre (para compatibilidad)
+    // Intentar buscar por ID primero
+    let producto = null
     
-    // Buscar el producto por nombre exacto primero
-    let producto = await prisma.product.findFirst({
-      where: { nombre: nombreBusqueda },
-    })
+    // Intentar convertir params.id a número/string ID
+    const idFromParams = params.id
     
-    // Si no lo encuentra, buscar con nombre normalizado
-    if (!producto) {
-      const todosLosProductos = await prisma.product.findMany()
-      const nombreBusquedaNormalizado = nombreBusqueda.toLowerCase().trim().replace(/\s+/g, ' ')
-      const productoEncontrado = todosLosProductos.find(p => {
-        const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-        return nombreNormalizado === nombreBusquedaNormalizado
+    // Buscar por ID directamente (puede ser string o number)
+    try {
+      producto = await prisma.product.findUnique({
+        where: { id: idFromParams },
       })
-      if (productoEncontrado) {
-        producto = productoEncontrado
-      }
+    } catch (error) {
+      // Si falla, intentar buscar por nombre (compatibilidad con código antiguo)
+      producto = await prisma.product.findFirst({
+        where: { nombre: decodeURIComponent(idFromParams) },
+      })
     }
-    
+
     if (!producto) {
       return NextResponse.json(
         { error: 'Producto no encontrado' },
@@ -51,9 +49,12 @@ export async function PUT(
     }
 
     // Si el nombre cambió, verificar que el nuevo nombre no exista
-    if (nombre !== nombreBusqueda) {
-      const productoConNuevoNombre = await prisma.product.findUnique({
-        where: { nombre: nombre },
+    if (nombre !== producto.nombre) {
+      const productoConNuevoNombre = await prisma.product.findFirst({
+        where: { 
+          nombre: nombre,
+          id: { not: producto.id } // Excluir el producto actual
+        },
       })
       if (productoConNuevoNombre) {
         return NextResponse.json(
@@ -84,21 +85,10 @@ export async function PUT(
     updateData.descripcion = descripcion && descripcion.trim() !== '' ? descripcion.trim() : null
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
-    // CRÍTICO: Actualizar TODOS los productos con el mismo nombre normalizado
-    // Esto asegura que cuando el GET seleccione uno, todos tengan la misma imagen actualizada
-    const nombreNormalizado = nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-    
-    // Buscar TODOS los productos con el mismo nombre normalizado
-    const todosLosProductos = await prisma.product.findMany()
-    const productosParaActualizar = todosLosProductos.filter(p => {
-      const nombrePNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-      return nombrePNormalizado === nombreNormalizado
-    })
-    
+    // Actualizar el producto por su ID (único)
     console.log(`💾 Guardando producto completo en BD:`, {
-      productoEncontrado: { id: producto.id, nombre: producto.nombre },
-      productosParaActualizar: productosParaActualizar.length,
-      idsProductosParaActualizar: productosParaActualizar.map(p => p.id),
+      productoId: producto.id,
+      nombre: producto.nombre,
       datosActualizacion: {
         nombre: updateData.nombre,
         categoria: updateData.categoria,
@@ -108,16 +98,11 @@ export async function PUT(
       }
     })
     
-    // Actualizar TODOS los productos con el mismo nombre normalizado
-    const updates = productosParaActualizar.map(p => 
-      prisma.product.update({
-        where: { id: p.id },
-        data: updateData,
-      })
-    )
-    
-    const productosActualizados = await Promise.all(updates)
-    const productoActualizado = productosActualizados[0] // Devolver el primero como referencia
+    // Actualizar el producto específico por su ID
+    const productoActualizado = await prisma.product.update({
+      where: { id: producto.id },
+      data: updateData,
+    })
 
     console.log(`✅ Producto actualizado en BD:`, {
       id: productoActualizado.id,

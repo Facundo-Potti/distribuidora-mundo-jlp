@@ -252,7 +252,7 @@ export default function AdminPage() {
           return
         }
         
-        const productosData = await response.json()
+          const productosData = await response.json()
         console.log('📥 Productos recibidos desde BD:', {
           cantidad: productosData.length,
           esArray: Array.isArray(productosData),
@@ -269,23 +269,23 @@ export default function AdminPage() {
           alert('Error: La respuesta del servidor no es válida')
           return
         }
-        
-        // Convertir el formato de la base de datos al formato esperado por el componente
-        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
-          let imagenDeBD: string | null = null
-          if (p.imagen !== null && 
-              p.imagen !== undefined && 
-              typeof p.imagen === 'string' && 
+          
+          // Convertir el formato de la base de datos al formato esperado por el componente
+          const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+            // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
+            let imagenDeBD: string | null = null
+            if (p.imagen !== null && 
+                p.imagen !== undefined && 
+                typeof p.imagen === 'string' && 
               p.imagen.trim() !== '' &&
               !p.imagen.includes('unsplash.com')) {
             // Solo usar imágenes que no sean de Unsplash (imágenes guardadas)
-            imagenDeBD = p.imagen.trim()
-          }
-          
-          // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
-          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-          
+              imagenDeBD = p.imagen.trim()
+            }
+            
+            // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
+            const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
+            
           // Log detallado para productos específicos (para debugging de imágenes)
           // Buscar productos con nombres conocidos que puedan tener problemas
           const nombresParaDebug = ['Aceite de Girasol', 'Aceite']
@@ -296,43 +296,43 @@ export default function AdminPage() {
               imagenParaMostrar: imagenParaMostrar,
               tieneImagen: !!p.imagen,
               tipoImagen: typeof p.imagen
-            })
-          }
+              })
+            }
+            
+            return {
+            id: p.id, // USAR EL ID REAL DE LA BD, no index + 1
+              nombre: p.nombre,
+              categoria: p.categoria,
+              precio: p.precio,
+              stock: p.stock || 0,
+              // imagen: URL para mostrar (puede ser de Supabase o por defecto)
+              imagen: imagenParaMostrar,
+              // imagenOriginal: URL real de la BD (null si no hay imagen guardada)
+              imagenOriginal: imagenDeBD,
+              descripcion: p.descripcion || "",
+              unidad: p.unidad || "",
+            }
+          })
           
-          return {
-            id: index + 1,
-            nombre: p.nombre,
-            categoria: p.categoria,
-            precio: p.precio,
-            stock: p.stock || 0,
-            // imagen: URL para mostrar (puede ser de Supabase o por defecto)
-            imagen: imagenParaMostrar,
-            // imagenOriginal: URL real de la BD (null si no hay imagen guardada)
-            imagenOriginal: imagenDeBD,
-            descripcion: p.descripcion || "",
-            unidad: p.unidad || "",
-          }
-        })
-        
         console.log(`✅ Productos formateados: ${productosFormateados.length}`)
-        const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
-        console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
-        
-        // Log de los primeros productos con imagen para verificar
-        if (productosConImagen.length > 0) {
-          console.log('📸 Primeros productos con imagen:', productosConImagen.slice(0, 3).map(p => ({
-            nombre: p.nombre,
-            imagenOriginal: p.imagenOriginal
-          })))
-        }
+          const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
+          console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
+          
+          // Log de los primeros productos con imagen para verificar
+          if (productosConImagen.length > 0) {
+            console.log('📸 Primeros productos con imagen:', productosConImagen.slice(0, 3).map(p => ({
+              nombre: p.nombre,
+              imagenOriginal: p.imagenOriginal
+            })))
+          }
         
         // Si no hay productos, mostrar mensaje
         if (productosFormateados.length === 0) {
           console.warn('⚠️ No se encontraron productos en la base de datos')
         }
-        
-        setProductos(productosFormateados)
-        setProductosFiltrados(productosFormateados)
+          
+          setProductos(productosFormateados)
+          setProductosFiltrados(productosFormateados)
       } catch (error: any) {
         console.error('❌ Error al cargar productos:', error)
         console.error('Error details:', {
@@ -512,7 +512,7 @@ export default function AdminPage() {
       } 
       // Prioridad 2: imagen si es de Supabase (por si imagenOriginal no se estableció correctamente)
       else if (producto.imagen && 
-               typeof producto.imagen === 'string' && 
+                 typeof producto.imagen === 'string' && 
                producto.imagen.includes('supabase.co') &&
                !producto.imagen.includes('unsplash.com')) {
         imagenParaFormulario = producto.imagen.trim()
@@ -560,9 +560,9 @@ export default function AdminPage() {
 
     try {
       // Guardar en la base de datos
-      // Usar el nombre del producto para la URL cuando se edita (la API busca por nombre)
+      // Usar el ID real del producto para la URL cuando se edita
       const url = productoEditando 
-        ? `/api/products/${encodeURIComponent(productoEditando.nombre)}`
+        ? `/api/products/${productoEditando.id}`
         : '/api/products/create'
       
       const method = productoEditando ? 'PUT' : 'POST'
@@ -690,8 +690,8 @@ export default function AdminPage() {
                 typeof p.imagen === 'string' && 
                 p.imagen.trim() !== '' &&
                 !p.imagen.includes('unsplash.com')
-                ? p.imagen.trim()
-                : null
+            ? p.imagen.trim()
+            : null
             }
           } else {
             // Para otros productos, usar la imagen de la BD normalmente
@@ -794,7 +794,7 @@ export default function AdminPage() {
         
         // Forzar un segundo update después de un pequeño delay para asegurar que React detecte todos los cambios
         setTimeout(() => {
-          setRefreshKey(prev => prev + 1)
+        setRefreshKey(prev => prev + 1)
         }, 100)
         
         console.log('🔄 Estado actualizado completamente:', {
@@ -1309,7 +1309,7 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {productosFiltrados.map((producto) => (
-                  <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
+                  <Card key={producto.id} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
                       {/* Placeholder mientras carga - más ligero */}
                       <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-0">
