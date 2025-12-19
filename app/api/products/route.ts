@@ -64,6 +64,17 @@ export async function GET() {
       })))
     }
     
+    // Log específico para "Aceite de Girasol" para debugging
+    const aceiteGirasol = productosADevolver.filter(p => p.nombre === 'Aceite de Girasol')
+    if (aceiteGirasol.length > 0) {
+      console.log(`🔍 DEBUG: Producto "Aceite de Girasol" encontrado ${aceiteGirasol.length} vez(ces):`, aceiteGirasol.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        imagen: p.imagen ? p.imagen.substring(0, 120) + '...' : null,
+        activo: p.activo
+      })))
+    }
+    
     // Verificar si hay productos duplicados por nombre (esto podría causar problemas)
     const nombres = productosADevolver.map(p => p.nombre)
     const nombresDuplicados = nombres.filter((nombre, index) => nombres.indexOf(nombre) !== index)
@@ -73,8 +84,9 @@ export async function GET() {
         const productosDuplicados = productosADevolver.filter(p => p.nombre === nombre)
         console.warn(`⚠️ Producto "${nombre}" aparece ${productosDuplicados.length} veces:`, productosDuplicados.map(p => ({
           id: p.id,
-          imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null,
-          activo: p.activo
+          imagen: p.imagen ? p.imagen.substring(0, 100) + '...' : null,
+          activo: p.activo,
+          imagenCompleta: p.imagen
         })))
       })
       
@@ -85,16 +97,39 @@ export async function GET() {
           // Es el primero, verificar si hay otros con el mismo nombre
           const duplicados = self.filter(prod => prod.nombre === p.nombre)
           if (duplicados.length > 1) {
-            // Si hay duplicados, tomar el que tenga imagen más reciente o el activo
-            const conImagen = duplicados.filter(prod => prod.imagen)
+            // Si hay duplicados, tomar el que tenga imagen más reciente
+            // Extraer timestamp del nombre del archivo de la imagen para determinar cuál es más reciente
+            const conImagen = duplicados.filter(prod => prod.imagen && prod.imagen.includes('supabase.co'))
             if (conImagen.length > 0) {
-              // Ordenar por ID descendente para tomar el más reciente
-              // Convertir ID a número para la comparación
+              // Ordenar por timestamp en el nombre del archivo (más reciente primero)
               conImagen.sort((a, b) => {
+                if (!a.imagen || !b.imagen) return 0
+                
+                // Extraer timestamp del nombre del archivo: producto-Nombre-TIMESTAMP.ext
+                const extractTimestamp = (url: string) => {
+                  const match = url.match(/producto-[^-]+-(\d+)\./i)
+                  return match ? parseInt(match[1]) : 0
+                }
+                
+                const timestampA = extractTimestamp(a.imagen)
+                const timestampB = extractTimestamp(b.imagen)
+                
+                // Si tienen timestamps, usar esos (más reciente = mayor timestamp)
+                if (timestampA > 0 && timestampB > 0) {
+                  return timestampB - timestampA
+                }
+                
+                // Si no tienen timestamps, usar ID como fallback
                 const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
                 const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
                 return idB - idA
               })
+              
+              console.log(`🔍 Duplicados de "${p.nombre}" ordenados por imagen más reciente:`, conImagen.map(prod => ({
+                id: prod.id,
+                imagen: prod.imagen ? prod.imagen.substring(0, 100) + '...' : null
+              })))
+              
               return conImagen[0].id === p.id
             }
             // Si no hay con imagen, tomar el activo o el más reciente
