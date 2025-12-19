@@ -83,10 +83,11 @@ export async function GET() {
       return idA > idB ? -1 : 1
     })
     
-    // Log de productos con "aceite" o "girasol" después de ordenar
+    // Log de productos con "aceite", "girasol" o "aceituna" después de ordenar
     const productosAceiteOrdenados = productosADevolver.filter(p => 
       p.nombre.toLowerCase().includes('aceite') || 
-      p.nombre.toLowerCase().includes('girasol')
+      p.nombre.toLowerCase().includes('girasol') ||
+      p.nombre.toLowerCase().includes('aceituna')
     )
     if (productosAceiteOrdenados.length > 0) {
       console.log(`🔍 DEBUG GET: Productos ordenados por updatedAt (más reciente primero):`, 
@@ -100,46 +101,64 @@ export async function GET() {
       )
     }
     
-    // Si hay productos con el mismo nombre normalizado, tomar solo el primero (más reciente por updatedAt)
-    // IMPORTANTE: Como ya están ordenados por updatedAt descendente, el primero es siempre el más reciente
-    const productosUnicos = new Map<string, typeof productosADevolver[0]>()
+    // Si hay productos con el mismo nombre normalizado, tomar solo el más reciente por updatedAt
+    // Agrupar primero por nombre normalizado
+    const productosPorNombre = new Map<string, typeof productosADevolver>()
     productosADevolver.forEach(p => {
       const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-      if (!productosUnicos.has(nombreNormalizado)) {
-        productosUnicos.set(nombreNormalizado, p)
+      if (!productosPorNombre.has(nombreNormalizado)) {
+        productosPorNombre.set(nombreNormalizado, [])
+      }
+      productosPorNombre.get(nombreNormalizado)!.push(p)
+    })
+    
+    // Para cada grupo, seleccionar el más reciente por updatedAt
+    const productosUnicos: typeof productosADevolver = []
+    productosPorNombre.forEach((productos, nombreNormalizado) => {
+      if (productos.length === 1) {
+        productosUnicos.push(productos[0])
       } else {
-        // Si ya existe, comparar updatedAt y quedarse con el más reciente
-        const existente = productosUnicos.get(nombreNormalizado)!
-        if (p.updatedAt && existente.updatedAt) {
-          const fechaP = new Date(p.updatedAt).getTime()
-          const fechaExistente = new Date(existente.updatedAt).getTime()
-          if (fechaP > fechaExistente) {
-            productosUnicos.set(nombreNormalizado, p)
-            console.log(`🔄 DEBUG GET: Reemplazando producto duplicado "${p.nombre}" (ID: ${existente.id} -> ${p.id}) porque tiene updatedAt más reciente`)
-            console.log(`   Existente: updatedAt=${fechaExistente}, imagen=${existente.imagen || 'null'}`)
-            console.log(`   Nuevo: updatedAt=${fechaP}, imagen=${p.imagen || 'null'}`)
+        // Hay duplicados - ordenar por updatedAt y tomar el más reciente
+        productos.sort((a, b) => {
+          if (a.updatedAt && b.updatedAt) {
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           }
-        } else if (p.updatedAt && !existente.updatedAt) {
-          productosUnicos.set(nombreNormalizado, p)
-          console.log(`🔄 DEBUG GET: Reemplazando producto duplicado "${p.nombre}" (ID: ${existente.id} -> ${p.id}) porque el nuevo tiene updatedAt`)
+          if (a.updatedAt && !b.updatedAt) return -1
+          if (!a.updatedAt && b.updatedAt) return 1
+          return 0
+        })
+        
+        const productoSeleccionado = productos[0]
+        productosUnicos.push(productoSeleccionado)
+        
+        // Log para productos con "aceituna"
+        if (nombreNormalizado.includes('aceituna')) {
+          console.log(`🔄 DEBUG GET: Productos duplicados para "${nombreNormalizado}" (${productos.length} productos):`)
+          productos.forEach((p, idx) => {
+            console.log(`  [${idx}] ID: ${p.id}, updatedAt: ${p.updatedAt?.toISOString() || 'null'}, imagen: ${p.imagen || 'null'}`)
+          })
+          console.log(`✅ Producto SELECCIONADO: ID=${productoSeleccionado.id}, updatedAt=${productoSeleccionado.updatedAt?.toISOString() || 'null'}, imagen=${productoSeleccionado.imagen || 'null'}`)
         }
       }
     })
     
-    productosADevolver = Array.from(productosUnicos.values())
+    productosADevolver = productosUnicos
     
-    // Log para productos con "aceite" o "girasol"
+    // Log para productos con "aceite", "girasol" o "aceituna" que se devuelven
     const productosDebug = productosADevolver.filter(p => 
       p.nombre.toLowerCase().includes('aceite') || 
-      p.nombre.toLowerCase().includes('girasol')
+      p.nombre.toLowerCase().includes('girasol') ||
+      p.nombre.toLowerCase().includes('aceituna')
     )
     if (productosDebug.length > 0) {
-      console.log(`🔍 DEBUG GET: Productos con "aceite" o "girasol" que se devuelven:`, 
+      console.log(`🔍 DEBUG GET: Productos FINALES que se devuelven (después de agrupar por nombre):`, 
         productosDebug.map(p => ({
           id: p.id,
           nombre: p.nombre,
-          imagen: p.imagen ? p.imagen.substring(0, 100) + '...' : 'null',
-          updatedAt: p.updatedAt?.toISOString() || 'null'
+          imagen: p.imagen || 'null',
+          imagenCompleta: p.imagen,
+          updatedAt: p.updatedAt?.toISOString() || 'null',
+          updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0
         }))
       )
     }
