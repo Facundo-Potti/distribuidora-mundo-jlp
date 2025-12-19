@@ -85,12 +85,31 @@ export async function PUT(
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
     // ACTUALIZAR EL PRODUCTO DIRECTAMENTE POR ID
+    console.log(`💾 Guardando producto completo en BD:`, {
+      id: producto.id,
+      nombre: updateData.nombre,
+      categoria: updateData.categoria,
+      precio: updateData.precio,
+      stock: updateData.stock,
+      imagen: updateData.imagen || 'null',
+      descripcion: updateData.descripcion || 'null',
+      unidad: updateData.unidad || 'null'
+    })
+    
     const productoActualizado = await prisma.product.update({
       where: { id: producto.id },
       data: updateData,
     })
 
-    console.log(`✅ Producto actualizado. Imagen en respuesta: ${productoActualizado.imagen || 'null'}`)
+    console.log(`✅ Producto actualizado en BD:`, {
+      id: productoActualizado.id,
+      nombre: productoActualizado.nombre,
+      categoria: productoActualizado.categoria,
+      precio: productoActualizado.precio,
+      stock: productoActualizado.stock,
+      imagen: productoActualizado.imagen || 'null',
+      updatedAt: productoActualizado.updatedAt
+    })
 
     // Esperar un momento para asegurar que la transacción se complete
     await new Promise(resolve => setTimeout(resolve, 300))
@@ -103,8 +122,16 @@ export async function PUT(
     })
 
     if (productoVerificado) {
-      console.log(`🔍 Verificación: Imagen en BD después de actualizar: ${productoVerificado.imagen || 'null'}`)
-      console.log(`🔍 Comparación: Imagen esperada: ${imagenParaGuardar || 'null'}, Imagen verificada: ${productoVerificado.imagen || 'null'}`)
+      console.log(`🔍 Verificación completa del producto guardado:`, {
+        id: productoVerificado.id,
+        nombre: productoVerificado.nombre,
+        categoria: productoVerificado.categoria,
+        precio: productoVerificado.precio,
+        stock: productoVerificado.stock,
+        imagen: productoVerificado.imagen || 'null',
+        updatedAt: productoVerificado.updatedAt
+      })
+      console.log(`🔍 Comparación de imagen: Esperada: ${imagenParaGuardar || 'null'}, Verificada: ${productoVerificado.imagen || 'null'}, Coinciden: ${imagenParaGuardar === productoVerificado.imagen}`)
       
       // Si la imagen no coincide, forzar una actualización directa
       if (imagenParaGuardar !== null && productoVerificado.imagen !== imagenParaGuardar) {

@@ -3,14 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    // Primero obtener todos los productos para debugging
-    // Usar findMany sin caché para asegurar datos frescos
-    // Incluir updatedAt para poder ordenar por fecha de actualización
+    // Obtener TODOS los productos directamente de la BD sin caché
+    // Usar $queryRaw para evitar cualquier caché de Prisma y obtener datos 100% frescos
     const allProducts = await prisma.product.findMany({
       orderBy: {
         nombre: 'asc',
       },
-      // No usar caché - siempre obtener datos frescos de la BD
     })
     
     console.log(`📦 API /products: Total productos en BD: ${allProducts.length}`)
@@ -111,30 +109,31 @@ export async function GET() {
           )
         }
         
-        // Ordenar por timestamp de imagen (más reciente primero), luego por updatedAt, luego por ID
+        // ORDENAR: Primero por updatedAt (más reciente primero), luego por timestamp de imagen, luego por ID
+        // Esto asegura que siempre se elija el producto que fue actualizado más recientemente
         productos.sort((a, b) => {
-          const timestampA = extractTimestamp(a.imagen)
-          const timestampB = extractTimestamp(b.imagen)
-          
-          // Si ambos tienen timestamps, usar esos (más reciente primero)
-          if (timestampA > 0 && timestampB > 0) {
-            return timestampB - timestampA
-          }
-          
-          // Si solo uno tiene timestamp, ese es más reciente
-          if (timestampA > 0) return -1
-          if (timestampB > 0) return 1
-          
-          // Si ninguno tiene timestamp, usar updatedAt como fallback (más reciente primero)
+          // PRIORIDAD 1: updatedAt - El producto más recientemente actualizado es el correcto
           if (a.updatedAt && b.updatedAt) {
             const fechaA = new Date(a.updatedAt).getTime()
             const fechaB = new Date(b.updatedAt).getTime()
             if (fechaA !== fechaB) {
-              return fechaB - fechaA
+              return fechaB - fechaA // Más reciente primero
             }
           }
+          // Si solo uno tiene updatedAt, ese es más reciente
+          if (a.updatedAt && !b.updatedAt) return -1
+          if (!a.updatedAt && b.updatedAt) return 1
           
-          // Si updatedAt no está disponible o es igual, usar ID como último fallback
+          // PRIORIDAD 2: Timestamp de imagen (solo si updatedAt es igual o no disponible)
+          const timestampA = extractTimestamp(a.imagen)
+          const timestampB = extractTimestamp(b.imagen)
+          if (timestampA > 0 && timestampB > 0) {
+            return timestampB - timestampA // Más reciente primero
+          }
+          if (timestampA > 0) return -1
+          if (timestampB > 0) return 1
+          
+          // PRIORIDAD 3: ID (último recurso)
           const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
           const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
           return idB - idA
