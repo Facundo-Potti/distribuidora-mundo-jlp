@@ -22,20 +22,41 @@ export async function PUT(
     const body = await request.json()
     const { nombre, categoria, precio, stock, imagen, descripcion, unidad, nombreOriginal } = body
 
-    console.log('Actualizando producto. Imagen recibida:', imagen)
+    console.log('📝 Actualizando producto. Imagen recibida:', imagen)
+    console.log('📝 Datos recibidos:', { nombre, nombreOriginal, imagen })
 
     // Si hay nombreOriginal, significa que se está renombrando el producto
     // Buscar el producto original por nombre
     const nombreBusqueda = nombreOriginal || nombre
-    const producto = await prisma.product.findUnique({
+    
+    // CRÍTICO: Buscar TODOS los productos con ese nombre para detectar duplicados
+    const productosConMismoNombre = await prisma.product.findMany({
       where: { nombre: nombreBusqueda },
     })
-
-    if (!producto) {
+    
+    console.log(`🔍 Productos encontrados con nombre "${nombreBusqueda}":`, productosConMismoNombre.length)
+    
+    if (productosConMismoNombre.length === 0) {
       return NextResponse.json(
         { error: 'Producto no encontrado' },
         { status: 404 }
       )
+    }
+    
+    // Si hay múltiples productos con el mismo nombre, tomar el más reciente (mayor ID)
+    let producto = productosConMismoNombre[0]
+    if (productosConMismoNombre.length > 1) {
+      console.warn(`⚠️ ADVERTENCIA: Hay ${productosConMismoNombre.length} productos con el nombre "${nombreBusqueda}"`)
+      console.warn('⚠️ IDs de productos duplicados:', productosConMismoNombre.map(p => ({ id: p.id, imagen: p.imagen ? p.imagen.substring(0, 80) + '...' : null })))
+      
+      // Ordenar por ID descendente y tomar el más reciente
+      productosConMismoNombre.sort((a, b) => {
+        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+        return idB - idA
+      })
+      producto = productosConMismoNombre[0]
+      console.log(`✅ Usando producto más reciente con ID: ${producto.id}`)
     }
 
     // Si el nombre cambió, verificar que el nuevo nombre no exista
@@ -78,11 +99,43 @@ export async function PUT(
       imagenNueva: updateData.imagen
     })
 
-    // Actualizar el producto
-    const productoActualizado = await prisma.product.update({
-      where: { id: producto.id },
-      data: updateData,
-    })
+    // CRÍTICO: Si hay productos duplicados, actualizar TODOS para evitar inconsistencias
+    let productoActualizado
+    if (productosConMismoNombre.length > 1) {
+      console.warn(`⚠️ Actualizando ${productosConMismoNombre.length} productos duplicados con el nombre "${nombreBusqueda}"`)
+      
+      // Actualizar TODOS los productos con el mismo nombre
+      const productosActualizados = await Promise.all(
+        productosConMismoNombre.map(p => 
+          prisma.product.update({
+            where: { id: p.id },
+            data: updateData,
+          })
+        )
+      )
+      
+      console.log(`✅ ${productosActualizados.length} productos actualizados`)
+      
+      // Usar el más reciente como respuesta
+      productosActualizados.sort((a, b) => {
+        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
+        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id))
+        return idB - idA
+      })
+      
+      productoActualizado = productosActualizados[0]
+      console.log('✅ Producto principal actualizado:', {
+        id: productoActualizado.id,
+        nombre: productoActualizado.nombre,
+        imagen: productoActualizado.imagen
+      })
+    } else {
+      // Actualizar el producto único
+      productoActualizado = await prisma.product.update({
+        where: { id: producto.id },
+        data: updateData,
+      })
+    }
 
     console.log('✅ Producto actualizado en BD:', {
       id: productoActualizado.id,
