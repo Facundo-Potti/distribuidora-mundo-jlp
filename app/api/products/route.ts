@@ -88,11 +88,20 @@ export async function GET() {
     let duplicadosEncontrados = 0
     
     productosPorNombre.forEach((productos, nombreNormalizado) => {
-      // SIEMPRE ordenar productos por updatedAt (más reciente primero), incluso si solo hay uno
-      // Esto asegura que si hay múltiples productos con el mismo nombre normalizado,
-      // se seleccione siempre el más recientemente actualizado
+      // SIEMPRE ordenar productos, PRIORIZANDO timestamp de imagen PRIMERO
+      // El timestamp de imagen es más confiable porque es único por cada subida de imagen
+      // Solo si no hay timestamp en la imagen, usar updatedAt como fallback
       productos.sort((a, b) => {
-        // PRIORIDAD 1: updatedAt - El producto más recientemente actualizado es el correcto
+        // PRIORIDAD 1: Timestamp de imagen - El timestamp en el nombre del archivo es el más confiable
+        const timestampA = extractTimestamp(a.imagen)
+        const timestampB = extractTimestamp(b.imagen)
+        if (timestampA > 0 && timestampB > 0) {
+          return timestampB - timestampA // Más reciente primero (timestamp más grande = más reciente)
+        }
+        if (timestampA > 0) return -1 // Si solo A tiene timestamp, es más reciente
+        if (timestampB > 0) return 1  // Si solo B tiene timestamp, es más reciente
+        
+        // PRIORIDAD 2: updatedAt - Solo usar si no hay timestamp en imagen
         if (a.updatedAt && b.updatedAt) {
           const fechaA = new Date(a.updatedAt).getTime()
           const fechaB = new Date(b.updatedAt).getTime()
@@ -103,15 +112,6 @@ export async function GET() {
         // Si solo uno tiene updatedAt, ese es más reciente
         if (a.updatedAt && !b.updatedAt) return -1
         if (!a.updatedAt && b.updatedAt) return 1
-        
-        // PRIORIDAD 2: Timestamp de imagen (solo si updatedAt es igual o no disponible)
-        const timestampA = extractTimestamp(a.imagen)
-        const timestampB = extractTimestamp(b.imagen)
-        if (timestampA > 0 && timestampB > 0) {
-          return timestampB - timestampA // Más reciente primero
-        }
-        if (timestampA > 0) return -1
-        if (timestampB > 0) return 1
         
         // PRIORIDAD 3: ID (último recurso) - usar el ID más grande (más reciente)
         const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id))
@@ -139,22 +139,26 @@ export async function GET() {
           )
         }
         
-        // Log del producto seleccionado
+        // Log del producto seleccionado - SIEMPRE loggear para productos con "aceituna" o "girasol"
         if (nombreNormalizado.includes('aceite') || nombreNormalizado.includes('girasol') || nombreNormalizado.includes('aceituna')) {
-          console.log(`✅ Producto seleccionado para "${nombreNormalizado}":`, {
+          console.log(`🔍 DEBUG: Producto seleccionado para "${nombreNormalizado}":`, {
             id: productos[0].id,
             nombre: productos[0].nombre,
             imagen: productos[0].imagen || 'null',
+            imagenCompleta: productos[0].imagen,
             timestamp: extractTimestamp(productos[0].imagen),
-            updatedAt: productos[0].updatedAt
+            updatedAt: productos[0].updatedAt,
+            updatedAtISO: productos[0].updatedAt?.toISOString() || 'null'
           })
-          console.log(`📊 Comparación de todos los productos duplicados:`, productos.map((p, idx) => ({
+          console.log(`🔍 DEBUG: Todos los productos duplicados ANTES de ordenar:`, productos.map((p, idx) => ({
             index: idx,
             id: p.id,
             nombre: p.nombre,
             imagen: p.imagen || 'null',
+            imagenCompleta: p.imagen,
             timestamp: extractTimestamp(p.imagen),
-            updatedAt: p.updatedAt,
+            updatedAt: p.updatedAt?.toISOString() || 'null',
+            updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0,
             activo: p.activo
           })))
         }

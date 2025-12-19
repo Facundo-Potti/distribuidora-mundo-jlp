@@ -85,11 +85,9 @@ export async function PUT(
     updateData.unidad = unidad && unidad.trim() !== '' ? unidad.trim() : null
 
     // ACTUALIZAR EL PRODUCTO DIRECTAMENTE POR ID
-    // Agregar updatedAt explícitamente para asegurar que se actualice
-    const updateDataConTimestamp = {
-      ...updateData,
-      updatedAt: new Date(), // Forzar actualización de updatedAt
-    }
+    // NO forzar updatedAt - Prisma lo maneja automáticamente con @updatedAt
+    // Si intentamos forzarlo manualmente, podría causar conflictos
+    const updateDataConTimestamp = updateData
     
     console.log(`💾 Guardando producto completo en BD:`, {
       id: producto.id,
@@ -114,7 +112,10 @@ export async function PUT(
       precio: productoActualizado.precio,
       stock: productoActualizado.stock,
       imagen: productoActualizado.imagen || 'null',
-      updatedAt: productoActualizado.updatedAt
+      imagenCompleta: productoActualizado.imagen,
+      updatedAt: productoActualizado.updatedAt,
+      updatedAtISO: productoActualizado.updatedAt?.toISOString() || 'null',
+      updatedAtTime: productoActualizado.updatedAt ? new Date(productoActualizado.updatedAt).getTime() : 0
     })
 
     // Esperar un momento para asegurar que la transacción se complete
