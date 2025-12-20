@@ -46,15 +46,14 @@ import { ImageUpload } from "@/components/ui/image-upload"
 
 // Tipos
 interface Producto {
-  id: string | number // ID real de la base de datos
+  id: string | number
   nombre: string
   categoria: string
   precio: number
   stock: number
-  imagen: string // Para mostrar en la lista (puede ser Unsplash por defecto)
-  imagenOriginal?: string | null // Imagen real de la BD (para edición)
-  descripcion?: string
-  unidad?: string
+  imagen: string | null
+  descripcion?: string | null
+  unidad?: string | null
 }
 
 interface Pedido {
@@ -81,14 +80,13 @@ export default function AdminPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("dashboard")
 
-  // Estados para productos
+  // Estados para productos - NUEVA IMPLEMENTACIÓN LIMPIA
   const [productos, setProductos] = useState<Producto[]>([])
-  const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([])
   const [busquedaProductos, setBusquedaProductos] = useState("")
   const [categoriaFiltro, setCategoriaFiltro] = useState("")
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
   const [dialogProductoAbierto, setDialogProductoAbierto] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0) // Para forzar re-render de imágenes
+  const [cargandoProductos, setCargandoProductos] = useState(true)
   const [formProducto, setFormProducto] = useState({
     nombre: "",
     categoria: "",
@@ -120,77 +118,40 @@ export default function AdminPage() {
     telefono: "",
   })
 
-  // Cargar productos desde la base de datos
-  useEffect(() => {
-    const cargarProductos = async () => {
-      try {
-        // Agregar timestamp para evitar cache del navegador
-        const response = await fetch(`/api/products?t=${Date.now()}`, {
-          cache: 'no-store',
-        })
-        if (response.ok) {
-          const productosData = await response.json()
-          console.log('📥 Productos cargados desde BD:', productosData.length)
-          
-          // Convertir el formato de la base de datos al formato esperado por el componente
-          const productosFormateados: Producto[] = productosData.map((p: any) => {
-            // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
-            let imagenDeBD: string | null = null
-            if (p.imagen !== null && 
-                p.imagen !== undefined && 
-                typeof p.imagen === 'string' && 
-                p.imagen.trim() !== '') {
-              imagenDeBD = p.imagen.trim()
-            }
-            
-            // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
-            const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-            
-            // Log para productos con imágenes de Supabase
-            if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
-              console.log(`🖼️ Producto con imagen Supabase: ${p.nombre}`, {
-                imagenBD: imagenDeBD,
-                imagenParaMostrar: imagenParaMostrar
-              })
-            }
-            
-            return {
-              id: p.id, // Usar el ID real de la base de datos
-              nombre: p.nombre,
-              categoria: p.categoria,
-              precio: p.precio,
-              stock: p.stock || 0,
-              // imagen: URL para mostrar (puede ser de Supabase o por defecto)
-              imagen: imagenParaMostrar,
-              // imagenOriginal: URL real de la BD (null si no hay imagen guardada)
-              imagenOriginal: imagenDeBD,
-              descripcion: p.descripcion || "",
-              unidad: p.unidad || "",
-            }
-          })
-          
-          console.log(`✅ Productos cargados: ${productosFormateados.length}`)
-          const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
-          console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
-          
-          // Log de los primeros productos con imagen para verificar
-          if (productosConImagen.length > 0) {
-            console.log('📸 Primeros productos con imagen:', productosConImagen.slice(0, 3).map(p => ({
-              nombre: p.nombre,
-              imagenOriginal: p.imagenOriginal
-            })))
-          }
-          
-          setProductos(productosFormateados)
-          setProductosFiltrados(productosFormateados)
-        } else {
-          console.error('Error al cargar productos:', response.statusText)
-        }
-      } catch (error) {
-        console.error('Error al cargar productos:', error)
+  // Cargar productos - NUEVA IMPLEMENTACIÓN LIMPIA
+  const cargarProductos = async () => {
+    try {
+      setCargandoProductos(true)
+      const response = await fetch(`/api/products?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar productos')
       }
+      
+      const data = await response.json()
+      const productosFormateados: Producto[] = data.map((p: any) => ({
+        id: p.id,
+        nombre: p.nombre || '',
+        categoria: p.categoria || '',
+        precio: p.precio || 0,
+        stock: p.stock || 0,
+        imagen: p.imagen || null,
+        descripcion: p.descripcion || null,
+        unidad: p.unidad || null,
+      }))
+      
+      setProductos(productosFormateados)
+    } catch (error) {
+      console.error('Error al cargar productos:', error)
+      alert('Error al cargar productos')
+    } finally {
+      setCargandoProductos(false)
     }
+  }
 
+  useEffect(() => {
     cargarProductos()
 
     // Cargar pedidos desde localStorage
@@ -297,24 +258,16 @@ export default function AdminPage() {
     }
   }, [])
 
-  // Filtrar productos
-  useEffect(() => {
-    let filtrados = productos
-
-    if (busquedaProductos) {
-      filtrados = filtrados.filter(
-        (p) =>
-          p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
-          p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
-      )
-    }
-
-    if (categoriaFiltro) {
-      filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
-    }
-
-    setProductosFiltrados(filtrados)
-  }, [busquedaProductos, categoriaFiltro, productos])
+  // Filtrar productos - NUEVA IMPLEMENTACIÓN LIMPIA
+  const productosFiltrados = productos.filter((p) => {
+    const matchBusqueda = !busquedaProductos || 
+      p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
+      p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
+    const matchCategoria = !categoriaFiltro || p.categoria === categoriaFiltro
+    return matchBusqueda && matchCategoria
+  })
+  
+  const categorias = Array.from(new Set(productos.map(p => p.categoria).filter(Boolean)))
 
   // Filtrar pedidos
   useEffect(() => {
@@ -343,40 +296,16 @@ export default function AdminPage() {
     // La búsqueda de clientes se maneja en el render
   }, [busquedaClientes])
 
-  // Funciones de productos
+  // Funciones de productos - NUEVA IMPLEMENTACIÓN LIMPIA
   const abrirDialogProducto = (producto?: Producto) => {
     if (producto) {
-      // Usar imagenOriginal si existe (imagen real de la BD), sino string vacío
-      // También verificar si imagen tiene una URL de Supabase (por si imagenOriginal no está establecida)
-      let imagenParaFormulario = ''
-      if (producto.imagenOriginal && 
-          typeof producto.imagenOriginal === 'string' && 
-          producto.imagenOriginal.trim() !== '') {
-        imagenParaFormulario = producto.imagenOriginal.trim()
-      } else if (producto.imagen && 
-                 typeof producto.imagen === 'string' && 
-                 producto.imagen.trim() !== '' &&
-                 !producto.imagen.includes('unsplash.com') &&
-                 producto.imagen.includes('supabase.co')) {
-        // Si imagenOriginal no está pero imagen es de Supabase, usarla
-        imagenParaFormulario = producto.imagen.trim()
-      }
-      
-      console.log('📝 Abriendo diálogo de edición:', {
-        id: producto.id,
-        nombre: producto.nombre,
-        imagenOriginal: producto.imagenOriginal,
-        imagen: producto.imagen,
-        imagenParaFormulario: imagenParaFormulario
-      })
-      
       setProductoEditando(producto)
       setFormProducto({
         nombre: producto.nombre,
         categoria: producto.categoria,
         precio: producto.precio.toString(),
         stock: producto.stock.toString(),
-        imagen: imagenParaFormulario,
+        imagen: producto.imagen || "",
         descripcion: producto.descripcion || "",
         unidad: producto.unidad || "",
       })
@@ -396,59 +325,37 @@ export default function AdminPage() {
   }
 
   const guardarProducto = async () => {
-    if (!formProducto.nombre || !formProducto.categoria || !formProducto.precio || !formProducto.stock) {
+    // Validar campos obligatorios
+    if (!formProducto.nombre.trim() || !formProducto.categoria || !formProducto.precio || !formProducto.stock) {
       alert("Por favor completa todos los campos obligatorios")
       return
     }
 
     try {
-      // Guardar en la base de datos
       const url = productoEditando 
         ? `/api/products/${productoEditando.id}`
         : '/api/products/create'
       
       const method = productoEditando ? 'PUT' : 'POST'
       
-      // Preparar datos: imagen debe ser null si está vacía, sino la URL completa
-      // CRÍTICO: Verificar que la imagen no sea de Unsplash (imagen por defecto)
-      let imagenParaGuardar: string | null = null
-      if (formProducto.imagen && 
-          typeof formProducto.imagen === 'string' &&
-          formProducto.imagen.trim() !== '' && 
-          !formProducto.imagen.includes('unsplash.com')) {
-        imagenParaGuardar = formProducto.imagen.trim()
-      }
+      // Preparar imagen: solo guardar si es una URL válida (no vacía y no de Unsplash)
+      const imagenParaGuardar = formProducto.imagen.trim() && !formProducto.imagen.includes('unsplash.com')
+        ? formProducto.imagen.trim()
+        : null
       
-      console.log('💾 Guardando producto con imagen:', {
-        productoEditando: productoEditando?.id,
-        imagenFormulario: formProducto.imagen,
-        imagenParaGuardar: imagenParaGuardar,
-        esSupabase: imagenParaGuardar && imagenParaGuardar.includes('supabase.co'),
-        esUnsplash: formProducto.imagen && formProducto.imagen.includes('unsplash.com')
-      })
-      
-      const bodyData: any = {
+      const bodyData = {
         nombre: formProducto.nombre.trim(),
         categoria: formProducto.categoria,
-        precio: formProducto.precio,
-        stock: formProducto.stock,
-        imagen: imagenParaGuardar, // Puede ser null (para eliminar) o una URL válida
-        descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion.trim() : null,
-        unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad.trim() : null,
+        precio: parseFloat(formProducto.precio),
+        stock: parseInt(formProducto.stock),
+        imagen: imagenParaGuardar,
+        descripcion: formProducto.descripcion.trim() || null,
+        unidad: formProducto.unidad.trim() || null,
       }
-      
-      console.log('📤 Enviando datos a la API:', {
-        url,
-        method,
-        imagenEnBody: bodyData.imagen || 'null',
-        tieneImagen: !!bodyData.imagen
-      })
       
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyData),
       })
 
@@ -457,92 +364,27 @@ export default function AdminPage() {
         throw new Error(error.error || 'Error al guardar producto')
       }
 
-      const productoGuardado = await response.json()
-      
-      console.log('✅ Producto guardado en BD:', {
-        nombre: productoGuardado.nombre,
-        imagen: productoGuardado.imagen,
-        imagenEsNull: productoGuardado.imagen === null,
-        imagenEsString: typeof productoGuardado.imagen === 'string'
-      })
-
-      // Cerrar el diálogo primero
+      // Cerrar diálogo y recargar productos
       setDialogProductoAbierto(false)
       setProductoEditando(null)
-
-      // Recargar productos desde la BD para asegurar que tenemos los datos más actualizados
-      const productosResponse = await fetch(`/api/products?t=${Date.now()}`, {
-        cache: 'no-store',
-      })
+      await cargarProductos()
       
-      if (productosResponse.ok) {
-        const productosData = await productosResponse.json()
-        const productosFormateados: Producto[] = productosData.map((p: any) => {
-          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
-            ? p.imagen.trim()
-            : null
-          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-          
-          return {
-            id: p.id, // Usar el ID real de la base de datos
-            nombre: p.nombre,
-            categoria: p.categoria,
-            precio: p.precio,
-            stock: p.stock || 0,
-            imagen: imagenParaMostrar,
-            imagenOriginal: imagenDeBD,
-            descripcion: p.descripcion || "",
-            unidad: p.unidad || "",
-          }
-        })
-        
-        setProductos(productosFormateados)
-        
-        // Actualizar productos filtrados
-        let filtrados = productosFormateados
-        if (busquedaProductos) {
-          filtrados = filtrados.filter(
-            (p) =>
-              p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
-              p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
-          )
-        }
-        if (categoriaFiltro) {
-          filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
-        }
-        setProductosFiltrados(filtrados)
-        
-        // Forzar re-render de imágenes
-        setRefreshKey(prev => prev + 1)
-      }
     } catch (error: any) {
       console.error('Error al guardar producto:', error)
       alert('Error al guardar producto: ' + error.message)
     }
   }
 
-  const eliminarProducto = async (id: string | number) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este producto?")) {
+  const eliminarProducto = async (producto: Producto) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar "${producto.nombre}"?`)) {
       return
     }
 
     try {
-      // Buscar el producto por ID local para obtener el nombre
-      const producto = productos.find((p) => p.id === id)
-      if (!producto) {
-        alert('Producto no encontrado')
-        return
-      }
-
-      // Eliminar de la base de datos - usar el ID real del producto
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await fetch(`/api/products/${producto.id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nombre: producto.nombre,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: producto.nombre }),
       })
 
       if (!response.ok) {
@@ -550,33 +392,7 @@ export default function AdminPage() {
         throw new Error(error.error || 'Error al eliminar producto')
       }
 
-      // Recargar productos desde la base de datos
-      const productosResponse = await fetch(`/api/products?t=${Date.now()}`, {
-        cache: 'no-store',
-      })
-      if (productosResponse.ok) {
-        const productosData = await productosResponse.json()
-        const productosFormateados: Producto[] = productosData.map((p: any) => {
-          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
-            ? p.imagen.trim()
-            : null
-          const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
-          
-          return {
-            id: p.id, // Usar el ID real de la base de datos
-            nombre: p.nombre,
-            categoria: p.categoria,
-            precio: p.precio,
-            stock: p.stock || 0,
-            imagen: imagenParaMostrar,
-            imagenOriginal: imagenDeBD,
-            descripcion: p.descripcion || "",
-            unidad: p.unidad || "",
-          }
-        })
-        setProductos(productosFormateados)
-        setProductosFiltrados(productosFormateados)
-      }
+      await cargarProductos()
     } catch (error: any) {
       console.error('Error al eliminar producto:', error)
       alert('Error al eliminar producto: ' + error.message)
@@ -759,7 +575,6 @@ export default function AdminPage() {
     pedidosCompletados: pedidos.filter((p) => p.estado === "completado").length,
   }
 
-  const categorias = Array.from(new Set(productos.map((p) => p.categoria)))
 
   const clientesFiltrados = busquedaClientes
     ? clientes.filter(
@@ -961,7 +776,7 @@ export default function AdminPage() {
               </div>
             </TabsContent>
 
-            {/* Productos Tab */}
+            {/* Productos Tab - NUEVA IMPLEMENTACIÓN LIMPIA */}
             <TabsContent value="productos" className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4 flex-1">
@@ -993,113 +808,84 @@ export default function AdminPage() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {productosFiltrados.map((producto) => (
-                  <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
-                    <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
-                      {/* Placeholder mientras carga - más ligero */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-0">
-                        <div className="w-12 h-12 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
-                      </div>
-                      <img
-                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
-                        src={(() => {
-                          // Priorizar imagenOriginal (imagen guardada en BD)
-                          // La imagen ya está comprimida al subir (máximo 800px, calidad 70%)
-                          if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
-                            // Agregar parámetros de caché para mejorar rendimiento
-                            const url = producto.imagenOriginal
-                            // Si no tiene parámetros, agregar timestamp para forzar recarga si es necesario
-                            return url.includes('?') ? url : `${url}?cache=1`
-                          }
-                          // Si no hay imagenOriginal, usar imagen (puede ser por defecto)
-                          return producto.imagen
-                        })()}
-                        alt={producto.nombre}
-                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
-                        loading="lazy"
-                        decoding="async"
-                        fetchPriority="low"
-                        width={400}
-                        height={300}
-                        style={{ 
-                          display: 'block', 
-                          width: '100%', 
-                          height: '100%',
-                          opacity: 0,
-                          objectFit: 'cover'
-                        }}
-                        onLoad={(e) => {
-                          // Mostrar imagen cuando esté cargada
-                          e.currentTarget.style.opacity = '1'
-                          // Ocultar placeholder
-                          const placeholder = e.currentTarget.previousElementSibling as HTMLElement
-                          if (placeholder) {
-                            placeholder.style.opacity = '0'
-                            setTimeout(() => {
-                              placeholder.style.display = 'none'
-                            }, 200)
-                          }
-                        }}
-                        onError={(e) => {
-                          console.error('❌ Error al cargar imagen:', {
-                            nombre: producto.nombre,
-                            imagenOriginal: producto.imagenOriginal,
-                            imagen: producto.imagen
-                          })
-                          // Si falla la carga, usar imagen por defecto solo si no es de Supabase
-                          if (!producto.imagenOriginal || !producto.imagenOriginal.includes('supabase.co')) {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-                          }
-                        }}
-                      />
-                    </div>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-xl">{producto.nombre}</CardTitle>
-                          <CardDescription>{producto.categoria}</CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => abrirDialogProducto(producto)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => eliminarProducto(producto.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Precio:</span>
-                          <span className="font-bold text-primary">
-                            ${producto.precio.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Stock:</span>
-                          <span className={`font-semibold ${producto.stock > 20 ? 'text-green-600' : 'text-red-600'}`}>
-                            {producto.stock} unidades
-                          </span>
-                        </div>
-                        {producto.unidad && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Unidad:</span>
-                            <span className="text-sm">{producto.unidad}</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {productosFiltrados.length === 0 && (
+              {cargandoProductos ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-600 text-lg">No se encontraron productos</p>
+                  <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-gray-600">Cargando productos...</p>
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {productosFiltrados.map((producto) => (
+                      <Card key={producto.id} className="overflow-hidden border-2 hover:border-primary transition-all">
+                        <div className="relative h-48 bg-gray-100">
+                          {producto.imagen ? (
+                            <img
+                              src={producto.imagen}
+                              alt={producto.nombre}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                              <Package className="w-16 h-16 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <CardTitle className="text-xl">{producto.nombre}</CardTitle>
+                              <CardDescription>{producto.categoria}</CardDescription>
+                            </div>
+                            <div className="flex gap-2 ml-2">
+                              <Button variant="ghost" size="icon" onClick={() => abrirDialogProducto(producto)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => eliminarProducto(producto)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Precio:</span>
+                              <span className="font-bold text-primary">
+                                ${producto.precio.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Stock:</span>
+                              <span className={`font-semibold ${producto.stock > 20 ? 'text-green-600' : 'text-red-600'}`}>
+                                {producto.stock} unidades
+                              </span>
+                            </div>
+                            {producto.unidad && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Unidad:</span>
+                                <span className="text-sm">{producto.unidad}</span>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {productosFiltrados.length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-gray-600 text-lg">
+                        {productos.length === 0 
+                          ? "No hay productos registrados"
+                          : "No se encontraron productos con los filtros aplicados"}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
 
@@ -1262,7 +1048,7 @@ export default function AdminPage() {
       </main>
       <Footer />
 
-      {/* Dialog para Producto */}
+      {/* Dialog para Producto - NUEVA IMPLEMENTACIÓN LIMPIA */}
       <Dialog open={dialogProductoAbierto} onOpenChange={setDialogProductoAbierto}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1308,6 +1094,7 @@ export default function AdminPage() {
                 <Input
                   id="precio"
                   type="number"
+                  step="0.01"
                   value={formProducto.precio}
                   onChange={(e) => setFormProducto({ ...formProducto, precio: e.target.value })}
                   placeholder="15000"
@@ -1329,34 +1116,9 @@ export default function AdminPage() {
               <ImageUpload
                 currentImage={formProducto.imagen}
                 onImageUploaded={(imageUrl) => {
-                  console.log('🖼️ Imagen subida, actualizando formulario:', {
-                    imageUrl,
-                    imageUrlType: typeof imageUrl,
-                    imageUrlLength: imageUrl ? imageUrl.length : 0,
-                    esSupabase: imageUrl && imageUrl.includes('supabase.co'),
-                    formProductoActual: formProducto
-                  })
-                  
-                  // CRÍTICO: Actualizar el formulario con la URL de Supabase
-                  // Solo si es una URL válida de Supabase (no Unsplash)
-                  if (imageUrl && imageUrl.includes('supabase.co')) {
-                    setFormProducto(prev => {
-                      const nuevo = { ...prev, imagen: imageUrl }
-                      console.log('✅ FormProducto actualizado con imagen Supabase:', nuevo)
-                      return nuevo
-                    })
-                  } else if (imageUrl === '') {
-                    // Si se eliminó la imagen, limpiar el campo
-                    setFormProducto(prev => {
-                      const nuevo = { ...prev, imagen: '' }
-                      console.log('🗑️ FormProducto actualizado (imagen eliminada):', nuevo)
-                      return nuevo
-                    })
-                  } else {
-                    console.warn('⚠️ URL de imagen no válida:', imageUrl)
-                  }
+                  setFormProducto(prev => ({ ...prev, imagen: imageUrl || "" }))
                 }}
-                productId={productoEditando?.id.toString()}
+                productId={productoEditando?.id?.toString()}
                 productName={formProducto.nombre || 'producto'}
               />
               <p className="text-xs text-gray-500 mt-2">
@@ -1366,7 +1128,7 @@ export default function AdminPage() {
                 id="imagen"
                 value={formProducto.imagen}
                 onChange={(e) => setFormProducto({ ...formProducto, imagen: e.target.value })}
-                placeholder="https://images.unsplash.com/... o /productos/imagen.jpg"
+                placeholder="https://..."
               />
             </div>
             <div className="space-y-2">
