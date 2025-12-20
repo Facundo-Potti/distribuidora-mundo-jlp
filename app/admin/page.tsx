@@ -46,7 +46,7 @@ import { ImageUpload } from "@/components/ui/image-upload"
 
 // Tipos
 interface Producto {
-  id: number
+  id: string | number // ID real de la base de datos
   nombre: string
   categoria: string
   precio: number
@@ -133,7 +133,7 @@ export default function AdminPage() {
           console.log('📥 Productos cargados desde BD:', productosData.length)
           
           // Convertir el formato de la base de datos al formato esperado por el componente
-          const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+          const productosFormateados: Producto[] = productosData.map((p: any) => {
             // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
             let imagenDeBD: string | null = null
             if (p.imagen !== null && 
@@ -155,7 +155,7 @@ export default function AdminPage() {
             }
             
             return {
-              id: index + 1,
+              id: p.id, // Usar el ID real de la base de datos
               nombre: p.nombre,
               categoria: p.categoria,
               precio: p.precio,
@@ -431,11 +431,6 @@ export default function AdminPage() {
         descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion.trim() : null,
         unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad.trim() : null,
       }
-
-      // Si estamos editando y el nombre cambió, incluir el nombre original
-      if (productoEditando && productoEditando.nombre !== formProducto.nombre) {
-        bodyData.nombreOriginal = productoEditando.nombre
-      }
       
       const response = await fetch(url, {
         method,
@@ -470,14 +465,14 @@ export default function AdminPage() {
       
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
-        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+        const productosFormateados: Producto[] = productosData.map((p: any) => {
           const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
             ? p.imagen.trim()
             : null
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
           return {
-            id: index + 1,
+            id: p.id, // Usar el ID real de la base de datos
             nombre: p.nombre,
             categoria: p.categoria,
             precio: p.precio,
@@ -514,7 +509,7 @@ export default function AdminPage() {
     }
   }
 
-  const eliminarProducto = async (id: number) => {
+  const eliminarProducto = async (id: string | number) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este producto?")) {
       return
     }
@@ -527,7 +522,7 @@ export default function AdminPage() {
         return
       }
 
-      // Eliminar de la base de datos
+      // Eliminar de la base de datos - usar el ID real del producto
       const response = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: {
@@ -549,14 +544,14 @@ export default function AdminPage() {
       })
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
-        const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
+        const productosFormateados: Producto[] = productosData.map((p: any) => {
           const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
             ? p.imagen.trim()
             : null
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
           return {
-            id: index + 1,
+            id: p.id, // Usar el ID real de la base de datos
             nombre: p.nombre,
             categoria: p.categoria,
             precio: p.precio,

@@ -141,13 +141,30 @@ export async function DELETE(
       )
     }
 
-    const body = await request.json()
-    const { nombre } = body
+    // Intentar buscar por ID primero (desde params)
+    let producto = null
+    try {
+      producto = await prisma.product.findUnique({
+        where: { id: params.id },
+      })
+    } catch (error) {
+      // Si falla buscar por ID, producto seguirá siendo null
+    }
 
-    // Buscar el producto por nombre
-    const producto = await prisma.product.findUnique({
-      where: { nombre: nombre },
-    })
+    // Si no se encontró por ID, leer el body y buscar por nombre (compatibilidad con código antiguo)
+    if (!producto) {
+      try {
+        const body = await request.json()
+        const { nombre } = body
+        if (nombre) {
+          producto = await prisma.product.findUnique({
+            where: { nombre: nombre },
+          })
+        }
+      } catch (error) {
+        // Si falla al leer el body o buscar, producto seguirá siendo null
+      }
+    }
 
     if (!producto) {
       return NextResponse.json(
