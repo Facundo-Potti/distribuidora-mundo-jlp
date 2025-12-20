@@ -221,6 +221,9 @@ export default function AdminPage() {
   useEffect(() => {
     const cargarProductos = async () => {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:223',message:'Iniciando carga de productos desde BD',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         console.log('🔄 Iniciando carga de productos desde BD...')
         
         // Agregar timestamp único para evitar cache del navegador
@@ -253,6 +256,9 @@ export default function AdminPage() {
         }
         
           const productosData = await response.json()
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:255',message:'Productos recibidos desde API',data:{cantidad:productosData.length,primeros3:productosData.slice(0,3).map((p:any)=>({id:p.id,nombre:p.nombre,imagen:p.imagen}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.log('📥 Productos recibidos desde BD:', {
           cantidad: productosData.length,
           esArray: Array.isArray(productosData),
@@ -301,7 +307,7 @@ export default function AdminPage() {
               })
           }
             
-            return {
+            const productoFormateado = {
             id: p.id, // USAR EL ID REAL DE LA BD, no index + 1
               nombre: p.nombre,
               categoria: p.categoria,
@@ -314,6 +320,10 @@ export default function AdminPage() {
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:315',message:'Producto formateado final',data:{productoId:productoFormateado.id,productoNombre:productoFormateado.nombre,imagen:productoFormateado.imagen.substring(0,100),imagenOriginal:productoFormateado.imagenOriginal},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            return productoFormateado
           })
           
         console.log(`✅ Productos formateados: ${productosFormateados.length}`)
@@ -333,6 +343,9 @@ export default function AdminPage() {
           console.warn('⚠️ No se encontraron productos en la base de datos')
         }
           
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:336',message:'Actualizando estado productos',data:{cantidad:productosFormateados.length,productosConImagen:productosFormateados.filter(p=>p.imagenOriginal!==null).length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
       } catch (error: any) {
@@ -623,6 +636,9 @@ export default function AdminPage() {
 
       const productoGuardado = await response.json()
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:625',message:'Producto guardado en BD',data:{id:productoGuardado.id,nombre:productoGuardado.nombre,imagen:productoGuardado.imagen,imagenEsNull:productoGuardado.imagen===null},timestamp:Date.now(),sessionId:'debug-session',runId:'save-product',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       console.log('✅ Producto guardado en BD:', {
         nombre: productoGuardado.nombre,
         imagen: productoGuardado.imagen,
@@ -706,8 +722,8 @@ export default function AdminPage() {
           
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
-          return {
-            id: index + 1,
+          const productoFormateadoPostSave = {
+            id: p.id, // CORREGIDO: Usar el ID real de la BD, no index + 1
             nombre: p.nombre,
             categoria: p.categoria,
             precio: p.precio,
@@ -717,6 +733,10 @@ export default function AdminPage() {
             descripcion: p.descripcion || "",
             unidad: p.unidad || "",
           }
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:710',message:'Producto formateado después de guardar',data:{productoId:productoFormateadoPostSave.id,productoNombre:productoFormateadoPostSave.nombre,imagenOriginal:productoFormateadoPostSave.imagenOriginal,esProductoGuardado},timestamp:Date.now(),sessionId:'debug-session',runId:'save-product',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          return productoFormateadoPostSave
         })
         
         console.log('✅ Productos formateados después de guardar:', productosFormateados.length)

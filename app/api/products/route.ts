@@ -11,6 +11,12 @@ export async function GET() {
       },
     })
     
+    // #region agent log
+    const fs = await import('fs/promises');
+    const logPath = 'c:\\Users\\USUARIO\\distribuidora-mundo-jlp\\.cursor\\debug.log';
+    const logEntry = JSON.stringify({location:'api/products/route.ts:8',message:'Productos obtenidos de BD',data:{total:allProducts.length,primeros3:allProducts.slice(0,3).map(p=>({id:p.id,nombre:p.nombre,imagen:p.imagen}))},timestamp:Date.now(),sessionId:'debug-session',runId:'get-products',hypothesisId:'A'})+'\n';
+    fs.appendFile(logPath, logEntry).catch(()=>{});
+    // #endregion
     console.log(`📦 API /products: Total productos en BD: ${allProducts.length}`)
     
     // Log específico para productos que contengan "Aceite", "Girasol" o "Aceituna"

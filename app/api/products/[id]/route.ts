@@ -104,6 +104,12 @@ export async function PUT(
       data: updateData,
     })
 
+    // #region agent log
+    const fs = await import('fs/promises');
+    const logPath = 'c:\\Users\\USUARIO\\distribuidora-mundo-jlp\\.cursor\\debug.log';
+    const logEntry = JSON.stringify({location:'api/products/[id]/route.ts:105',message:'Producto actualizado en BD',data:{id:productoActualizado.id,nombre:productoActualizado.nombre,imagen:productoActualizado.imagen,imagenEsNull:productoActualizado.imagen===null,updatedAt:productoActualizado.updatedAt?.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'save-product',hypothesisId:'D'})+'\n';
+    fs.appendFile(logPath, logEntry).catch(()=>{});
+    // #endregion
     console.log(`✅ Producto actualizado en BD:`, {
       id: productoActualizado.id,
       nombre: productoActualizado.nombre,
