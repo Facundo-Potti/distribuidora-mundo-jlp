@@ -26,3 +26,4 @@ Write-Host "postgresql://postgres.xxxxx:$encoded@aws-0-xx.pooler.supabase.com:65
 
 
 
+
