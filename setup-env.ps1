@@ -22,3 +22,5 @@ Write-Host "NEXTAUTH_SECRET generado: $secret" -ForegroundColor Yellow
 
 
 
+
+

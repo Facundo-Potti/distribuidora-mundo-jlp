@@ -44,102 +44,6 @@ import {
 import Image from "next/image"
 import { ImageUpload } from "@/components/ui/image-upload"
 
-// Componente para renderizar imagen de producto con cache busting
-// NO usar React.memo para forzar re-render siempre
-const ProductImage = ({ producto, refreshKey, cacheBuster }: { producto: Producto, refreshKey: number, cacheBuster: number }) => {
-  // Calcular URL de imagen - SIEMPRE recalcular para forzar actualización
-  const getImageUrl = () => {
-    // Prioridad 1: imagenOriginal (imagen guardada en BD de Supabase)
-    if (producto.imagenOriginal && 
-        typeof producto.imagenOriginal === 'string' &&
-        producto.imagenOriginal.includes('supabase.co') &&
-        !producto.imagenOriginal.includes('unsplash.com')) {
-      // Agregar timestamp único para evitar caché del navegador
-      // Usar tanto refreshKey como cacheBuster para forzar actualización
-      const url = producto.imagenOriginal.split('?')[0] // Remover query params existentes
-      const timestamp = Date.now()
-      return `${url}?t=${timestamp}&r=${refreshKey}&c=${cacheBuster}&v=${timestamp}`
-    }
-    // Prioridad 2: imagen (puede ser de Supabase si imagenOriginal no se estableció)
-    if (producto.imagen && 
-        typeof producto.imagen === 'string' &&
-        producto.imagen.includes('supabase.co') &&
-        !producto.imagen.includes('unsplash.com')) {
-      const url = producto.imagen.split('?')[0] // Remover query params existentes
-      const timestamp = Date.now()
-      return `${url}?t=${timestamp}&r=${refreshKey}&c=${cacheBuster}&v=${timestamp}`
-    }
-    // Prioridad 3: imagen por defecto (Unsplash)
-    return producto.imagen || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-  }
-
-  // SIEMPRE usar la URL calculada directamente, sin estado intermedio
-  // Recalcular en cada render para asegurar que use los valores más recientes
-  const imageSrc = getImageUrl()
-  
-  // Log para debugging (solo en desarrollo)
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    console.log(`🖼️ ProductImage render para ${producto.nombre}:`, {
-      imagenOriginal: producto.imagenOriginal,
-      refreshKey,
-      cacheBuster,
-      imageSrc: imageSrc.substring(0, 100) + '...'
-    })
-  }
-
-  return (
-    <img
-      key={`product-img-${producto.nombre}-${refreshKey}-${cacheBuster}-${producto.imagenOriginal || 'no-img'}`}
-      src={imageSrc}
-      alt={producto.nombre}
-      className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
-      loading="lazy"
-      decoding="async"
-      fetchPriority="low"
-      width={400}
-      height={300}
-      style={{ 
-        display: 'block', 
-        width: '100%', 
-        height: '100%',
-        opacity: 0,
-        objectFit: 'cover'
-      }}
-      onLoad={(e) => {
-        // Mostrar imagen cuando esté cargada
-        e.currentTarget.style.opacity = '1'
-        // Ocultar placeholder
-        const placeholder = e.currentTarget.previousElementSibling as HTMLElement
-        if (placeholder) {
-          placeholder.style.opacity = '0'
-          setTimeout(() => {
-            placeholder.style.display = 'none'
-          }, 200)
-        }
-      }}
-      onError={(e) => {
-        console.error('❌ Error al cargar imagen:', {
-          nombre: producto.nombre,
-          imagenOriginal: producto.imagenOriginal,
-          imagen: producto.imagen,
-          src: e.currentTarget.src
-        })
-        // Si falla la carga, intentar recargar con timestamp nuevo
-        const currentSrc = e.currentTarget.src
-        if (currentSrc.includes('supabase.co')) {
-          const baseUrl = currentSrc.split('?')[0]
-          e.currentTarget.src = `${baseUrl}?t=${Date.now()}&r=${refreshKey}&c=${cacheBuster}`
-          return
-        }
-        // Si no es de Supabase, usar imagen por defecto
-        if (!currentSrc.includes('unsplash.com')) {
-          e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-        }
-      }}
-    />
-  )
-}
-
 // Tipos
 interface Producto {
   id: number
@@ -185,7 +89,6 @@ export default function AdminPage() {
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
   const [dialogProductoAbierto, setDialogProductoAbierto] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0) // Para forzar re-render de imágenes
-  const [imageCacheBuster, setImageCacheBuster] = useState<{[key: string]: number}>({}) // Cache buster por producto
   const [formProducto, setFormProducto] = useState({
     nombre: "",
     categoria: "",
@@ -221,94 +124,38 @@ export default function AdminPage() {
   useEffect(() => {
     const cargarProductos = async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:223',message:'Iniciando carga de productos desde BD',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        console.log('🔄 Iniciando carga de productos desde BD...')
-        
-        // Agregar timestamp único para evitar cache del navegador
-        // Usar múltiples parámetros para forzar que no use caché
-        const timestamp = Date.now()
-        const response = await fetch(`/api/products?t=${timestamp}&_=${timestamp}&nocache=${Math.random()}`, {
+        // Agregar timestamp para evitar cache del navegador
+        const response = await fetch(`/api/products?t=${Date.now()}`, {
           cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-          },
         })
-        
-        console.log('📡 Respuesta de API:', {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
-          console.error('❌ Error al cargar productos:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData
-          })
-          alert(`Error al cargar productos: ${errorData.error || response.statusText}`)
-          return
-        }
-        
+        if (response.ok) {
           const productosData = await response.json()
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:255',message:'Productos recibidos desde API',data:{cantidad:productosData.length,primeros3:productosData.slice(0,3).map((p:any)=>({id:p.id,nombre:p.nombre,imagen:p.imagen}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        console.log('📥 Productos recibidos desde BD:', {
-          cantidad: productosData.length,
-          esArray: Array.isArray(productosData),
-          primeros3: productosData.slice(0, 3).map((p: any) => ({
-            nombre: p.nombre,
-            categoria: p.categoria,
-            activo: p.activo
-          }))
-        })
-        
-        // Verificar si es un array
-        if (!Array.isArray(productosData)) {
-          console.error('❌ La respuesta no es un array:', productosData)
-          alert('Error: La respuesta del servidor no es válida')
-          return
-        }
+          console.log('📥 Productos cargados desde BD:', productosData.length)
           
           // Convertir el formato de la base de datos al formato esperado por el componente
           const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-            // CRÍTICO: Usar EXACTAMENTE la imagen que viene de la BD, sin procesamiento adicional
-            // Si p.imagen es null, undefined, o vacío, usar null. Si tiene valor, usarlo tal cual.
+            // Extraer la imagen de la BD: si existe y es válida, usarla; si no, usar imagen por defecto
             let imagenDeBD: string | null = null
             if (p.imagen !== null && 
                 p.imagen !== undefined && 
                 typeof p.imagen === 'string' && 
                 p.imagen.trim() !== '') {
-              // Usar la imagen tal cual viene de la BD (puede ser Supabase o cualquier URL válida)
               imagenDeBD = p.imagen.trim()
             }
             
             // Para mostrar: usar la imagen de la BD si existe, sino usar imagen por defecto
             const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
             
-          // Log detallado para productos específicos (para debugging de imágenes)
-          // Buscar productos con nombres conocidos que puedan tener problemas
-          const nombresParaDebug = ['Aceite de Girasol', 'Aceite', 'ACEITUNA NEGRA']
-          if (nombresParaDebug.some(n => p.nombre.toUpperCase().includes(n.toUpperCase()))) {
-            console.log(`🔍 DEBUG Producto: ${p.nombre}`, {
-              id: p.id,
-              imagenBD: p.imagen,
-              imagenDeBD: imagenDeBD,
-              imagenParaMostrar: imagenParaMostrar,
-              tieneImagen: !!p.imagen,
-              tipoImagen: typeof p.imagen,
-              updatedAt: p.updatedAt
+            // Log para productos con imágenes de Supabase
+            if (imagenDeBD && imagenDeBD.includes('supabase.co')) {
+              console.log(`🖼️ Producto con imagen Supabase: ${p.nombre}`, {
+                imagenBD: imagenDeBD,
+                imagenParaMostrar: imagenParaMostrar
               })
-          }
+            }
             
-            const productoFormateado = {
-            id: p.id, // USAR EL ID REAL DE LA BD, no index + 1
+            return {
+              id: index + 1,
               nombre: p.nombre,
               categoria: p.categoria,
               precio: p.precio,
@@ -320,13 +167,9 @@ export default function AdminPage() {
               descripcion: p.descripcion || "",
               unidad: p.unidad || "",
             }
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:315',message:'Producto formateado final',data:{productoId:productoFormateado.id,productoNombre:productoFormateado.nombre,imagen:productoFormateado.imagen.substring(0,100),imagenOriginal:productoFormateado.imagenOriginal},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
-            return productoFormateado
           })
           
-        console.log(`✅ Productos formateados: ${productosFormateados.length}`)
+          console.log(`✅ Productos cargados: ${productosFormateados.length}`)
           const productosConImagen = productosFormateados.filter(p => p.imagenOriginal !== null)
           console.log(`🖼️ Productos con imagen guardada: ${productosConImagen.length}`)
           
@@ -337,25 +180,14 @@ export default function AdminPage() {
               imagenOriginal: p.imagenOriginal
             })))
           }
-        
-        // Si no hay productos, mostrar mensaje
-        if (productosFormateados.length === 0) {
-          console.warn('⚠️ No se encontraron productos en la base de datos')
-        }
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:336',message:'Actualizando estado productos',data:{cantidad:productosFormateados.length,productosConImagen:productosFormateados.filter(p=>p.imagenOriginal!==null).length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial-load',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           setProductos(productosFormateados)
           setProductosFiltrados(productosFormateados)
-      } catch (error: any) {
-        console.error('❌ Error al cargar productos:', error)
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        })
-        alert(`Error al cargar productos: ${error.message || 'Error desconocido'}`)
+        } else {
+          console.error('Error al cargar productos:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error al cargar productos:', error)
       }
     }
 
@@ -517,19 +349,14 @@ export default function AdminPage() {
       // Usar imagenOriginal si existe (imagen real de la BD), sino string vacío
       // También verificar si imagen tiene una URL de Supabase (por si imagenOriginal no está establecida)
       let imagenParaFormulario = ''
-      
-      // Prioridad 1: imagenOriginal (imagen guardada en BD)
       if (producto.imagenOriginal && 
           typeof producto.imagenOriginal === 'string' && 
-          producto.imagenOriginal.trim() !== '' &&
-          !producto.imagenOriginal.includes('unsplash.com')) {
+          producto.imagenOriginal.trim() !== '') {
         imagenParaFormulario = producto.imagenOriginal.trim()
-      } 
-      // Prioridad 2: imagen si es de Supabase (por si imagenOriginal no se estableció correctamente)
-      else if (producto.imagen && 
+      } else if (producto.imagen && 
                  typeof producto.imagen === 'string' && 
-               producto.imagen.includes('supabase.co') &&
-               !producto.imagen.includes('unsplash.com')) {
+                 producto.imagen.includes('supabase.co')) {
+        // Si imagenOriginal no está pero imagen es de Supabase, usarla
         imagenParaFormulario = producto.imagen.trim()
       }
       
@@ -537,9 +364,7 @@ export default function AdminPage() {
         nombre: producto.nombre,
         imagenOriginal: producto.imagenOriginal,
         imagen: producto.imagen,
-        imagenParaFormulario: imagenParaFormulario,
-        tieneImagenOriginal: !!producto.imagenOriginal,
-        tieneImagenSupabase: producto.imagen?.includes('supabase.co')
+        imagenParaFormulario: imagenParaFormulario
       })
       
       setProductoEditando(producto)
@@ -575,7 +400,6 @@ export default function AdminPage() {
 
     try {
       // Guardar en la base de datos
-      // Usar el ID real del producto para la URL cuando se edita
       const url = productoEditando 
         ? `/api/products/${productoEditando.id}`
         : '/api/products/create'
@@ -584,26 +408,18 @@ export default function AdminPage() {
       
       // Preparar datos: imagen debe ser null si está vacía, sino la URL completa
       // CRÍTICO: Verificar que la imagen no sea de Unsplash (imagen por defecto)
-      // Solo guardar URLs de Supabase o URLs válidas (no Unsplash)
       let imagenParaGuardar = null
       if (formProducto.imagen && 
           formProducto.imagen.trim() !== '' && 
           !formProducto.imagen.includes('unsplash.com')) {
-        // Verificar que sea una URL válida de Supabase o una URL válida en general
-        const imagenTrimmed = formProducto.imagen.trim()
-        if (imagenTrimmed.includes('supabase.co') || imagenTrimmed.startsWith('http')) {
-          imagenParaGuardar = imagenTrimmed
-        }
+        imagenParaGuardar = formProducto.imagen.trim()
       }
       
       console.log('💾 Guardando producto con imagen:', {
-        nombre: formProducto.nombre,
         imagenFormulario: formProducto.imagen,
         imagenParaGuardar: imagenParaGuardar,
         esSupabase: imagenParaGuardar && imagenParaGuardar.includes('supabase.co'),
-        esUnsplash: formProducto.imagen && formProducto.imagen.includes('unsplash.com'),
-        editando: !!productoEditando,
-        nombreOriginal: productoEditando?.nombre
+        esUnsplash: formProducto.imagen && formProducto.imagen.includes('unsplash.com')
       })
       
       const bodyData: any = {
@@ -636,136 +452,47 @@ export default function AdminPage() {
 
       const productoGuardado = await response.json()
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:625',message:'Producto guardado en BD',data:{id:productoGuardado.id,nombre:productoGuardado.nombre,imagen:productoGuardado.imagen,imagenEsNull:productoGuardado.imagen===null},timestamp:Date.now(),sessionId:'debug-session',runId:'save-product',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       console.log('✅ Producto guardado en BD:', {
         nombre: productoGuardado.nombre,
         imagen: productoGuardado.imagen,
         imagenEsNull: productoGuardado.imagen === null,
-        imagenEsString: typeof productoGuardado.imagen === 'string',
-        imagenCompleta: productoGuardado.imagen
+        imagenEsString: typeof productoGuardado.imagen === 'string'
       })
 
       // Cerrar el diálogo primero
       setDialogProductoAbierto(false)
       setProductoEditando(null)
 
-      // ESPERAR un momento para asegurar que la BD se actualizó completamente
-      // Esto es crítico porque puede haber un pequeño delay en la actualización de la BD
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Forzar re-render inmediato antes de recargar
-      setRefreshKey(prev => prev + 1)
-
       // Recargar productos desde la BD para asegurar que tenemos los datos más actualizados
-      // Usar un timestamp único para evitar caché
-      const timestamp = Date.now()
-      const productosResponse = await fetch(`/api/products?t=${timestamp}&_=${Date.now()}`, {
+      const productosResponse = await fetch(`/api/products?t=${Date.now()}`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
       })
       
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
-        console.log('🔄 Recargando productos después de guardar:', {
-          cantidad: productosData.length,
-          productoGuardado: productoGuardado.nombre,
-          imagenProductoGuardado: productoGuardado.imagen
-        })
-        
-        // CRÍTICO: Usar el ID para identificar el producto guardado, no el nombre
-        // Esto asegura que siempre encontremos el producto correcto incluso si hay duplicados
-        const idProductoGuardado = productoGuardado.id
-        
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          // CRÍTICO: Si es el producto que acabamos de guardar (por ID), usar la imagen del producto guardado
-          const esProductoGuardado = p.id === idProductoGuardado
-          
-          let imagenDeBD: string | null = null
-          
-          if (esProductoGuardado) {
-            // SIEMPRE usar la imagen del producto guardado directamente para este producto
-            if (productoGuardado.imagen && 
-                typeof productoGuardado.imagen === 'string' && 
-                productoGuardado.imagen.trim() !== '' &&
-                !productoGuardado.imagen.includes('unsplash.com')) {
-              imagenDeBD = productoGuardado.imagen.trim()
-              console.log('✅ USANDO IMAGEN DEL PRODUCTO GUARDADO:', {
-                nombre: p.nombre,
-                imagenBDAnterior: p.imagen,
-                imagenGuardada: productoGuardado.imagen,
-                imagenFinal: imagenDeBD
-              })
-            } else {
-              // Si no hay imagen guardada, usar la de la BD
-              imagenDeBD = p.imagen && 
-                typeof p.imagen === 'string' && 
-                p.imagen.trim() !== '' &&
-                !p.imagen.includes('unsplash.com')
+          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
             ? p.imagen.trim()
             : null
-            }
-          } else {
-            // Para otros productos, usar la imagen de la BD normalmente
-            imagenDeBD = p.imagen && 
-              typeof p.imagen === 'string' && 
-              p.imagen.trim() !== '' &&
-              !p.imagen.includes('unsplash.com')
-              ? p.imagen.trim()
-              : null
-          }
-          
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
-          const productoFormateadoPostSave = {
-            id: p.id, // CORREGIDO: Usar el ID real de la BD, no index + 1
+          return {
+            id: index + 1,
             nombre: p.nombre,
             categoria: p.categoria,
             precio: p.precio,
             stock: p.stock || 0,
             imagen: imagenParaMostrar,
-            imagenOriginal: imagenDeBD, // CRÍTICO: Establecer imagenOriginal con la imagen correcta
+            imagenOriginal: imagenDeBD,
             descripcion: p.descripcion || "",
             unidad: p.unidad || "",
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/60bba105-4aa0-4888-a804-c94f4021a4ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/page.tsx:710',message:'Producto formateado después de guardar',data:{productoId:productoFormateadoPostSave.id,productoNombre:productoFormateadoPostSave.nombre,imagenOriginal:productoFormateadoPostSave.imagenOriginal,esProductoGuardado},timestamp:Date.now(),sessionId:'debug-session',runId:'save-product',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
-          return productoFormateadoPostSave
         })
         
-        console.log('✅ Productos formateados después de guardar:', productosFormateados.length)
+        setProductos(productosFormateados)
         
-        // FORZAR ACTUALIZACIÓN COMPLETA - Crear nuevos arrays y objetos completamente nuevos
-        const nuevosProductos = productosFormateados.map(p => ({ 
-          ...p,
-          // Forzar nuevas referencias para asegurar que React detecte el cambio
-          imagenOriginal: p.imagenOriginal ? String(p.imagenOriginal) : null,
-          imagen: String(p.imagen)
-        }))
-        
-        console.log('🔄 Actualizando productos en estado:', {
-          cantidad: nuevosProductos.length,
-          productoActualizado: productoGuardado.nombre,
-          idProductoGuardado: idProductoGuardado,
-          imagenOriginalProducto: nuevosProductos.find(p => p.id === idProductoGuardado)?.imagenOriginal
-        })
-        
-        // Actualizar estado de productos
-        setProductos(nuevosProductos)
-        
-        // Actualizar productos filtrados - Asegurar nuevas referencias
-        let filtrados = nuevosProductos.map(p => ({ 
-          ...p,
-          // Forzar nuevas referencias también en filtrados
-          imagenOriginal: p.imagenOriginal ? String(p.imagenOriginal) : null,
-          imagen: String(p.imagen)
-        }))
+        // Actualizar productos filtrados
+        let filtrados = productosFormateados
         if (busquedaProductos) {
           filtrados = filtrados.filter(
             (p) =>
@@ -776,71 +503,10 @@ export default function AdminPage() {
         if (categoriaFiltro) {
           filtrados = filtrados.filter((p) => p.categoria === categoriaFiltro)
         }
-        
-        console.log('🔄 Actualizando productos filtrados:', {
-          cantidad: filtrados.length,
-          idProductoGuardado: idProductoGuardado,
-          productoActualizadoEnFiltrados: filtrados.find(p => p.id === idProductoGuardado)?.imagenOriginal
-        })
-        
         setProductosFiltrados(filtrados)
         
-        // FORZAR RE-RENDER COMPLETO con timestamp único
-        const newRefreshKey = Date.now()
-        
-        // Actualizar cache buster específico para el producto guardado ANTES de actualizar refreshKey
-        // Usar el nombre normalizado para asegurar que se actualice correctamente
-        const nombreParaCacheBuster = productoGuardado.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-        if (productoGuardado.nombre) {
-          const newCacheBuster = Date.now()
-          console.log('🔄 Actualizando cache buster para', productoGuardado.nombre, ':', newCacheBuster)
-          setImageCacheBuster(prev => {
-            // Actualizar tanto con el nombre original como con el normalizado
-            const nuevo = {
-              ...prev,
-              [productoGuardado.nombre]: newCacheBuster,
-              [nombreParaCacheBuster]: newCacheBuster
-            }
-            console.log('🔄 Nuevo cache buster state:', nuevo)
-            return nuevo
-          })
-        }
-        
-        // Actualizar refreshKey después de actualizar cache buster
-        setRefreshKey(newRefreshKey)
-        
-        // Forzar un segundo update después de un pequeño delay para asegurar que React detecte todos los cambios
-        setTimeout(() => {
+        // Forzar re-render de imágenes
         setRefreshKey(prev => prev + 1)
-        }, 100)
-        
-        console.log('🔄 Estado actualizado completamente:', {
-          refreshKey: newRefreshKey,
-          productosActualizados: nuevosProductos.length,
-          productoGuardado: productoGuardado.nombre,
-          imagenProductoGuardado: productoGuardado.imagen
-        })
-        
-        // Buscar el producto actualizado en la lista para verificar
-        const productoActualizadoEnLista = nuevosProductos.find(p => p.nombre === productoGuardado.nombre)
-        if (productoActualizadoEnLista) {
-          console.log('✅ Producto encontrado en lista actualizada:', {
-            nombre: productoActualizadoEnLista.nombre,
-            imagenOriginal: productoActualizadoEnLista.imagenOriginal,
-            imagen: productoActualizadoEnLista.imagen
-          })
-        } else {
-          console.warn('⚠️ Producto NO encontrado en lista actualizada:', productoGuardado.nombre)
-        }
-        
-        // Forzar un segundo re-render después de un pequeño delay para asegurar actualización
-        setTimeout(() => {
-          const secondRefreshKey = Date.now()
-          setRefreshKey(secondRefreshKey)
-          console.log('🔄 Segundo refresh forzado:', secondRefreshKey)
-        }, 300)
-      } else {
-        console.error('❌ Error al recargar productos después de guardar:', productosResponse.statusText)
       }
     } catch (error: any) {
       console.error('Error al guardar producto:', error)
@@ -861,8 +527,8 @@ export default function AdminPage() {
         return
       }
 
-      // Eliminar de la base de datos usando el nombre del producto
-      const response = await fetch(`/api/products/${encodeURIComponent(producto.nombre)}`, {
+      // Eliminar de la base de datos
+      const response = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -884,17 +550,13 @@ export default function AdminPage() {
       if (productosResponse.ok) {
         const productosData = await productosResponse.json()
         const productosFormateados: Producto[] = productosData.map((p: any, index: number) => {
-          // Extraer imagen de BD: solo si es válida y no es de Unsplash
-          const imagenDeBD = p.imagen && 
-            typeof p.imagen === 'string' && 
-            p.imagen.trim() !== '' &&
-            !p.imagen.includes('unsplash.com')
+          const imagenDeBD = p.imagen && typeof p.imagen === 'string' && p.imagen.trim() !== ''
             ? p.imagen.trim()
             : null
           const imagenParaMostrar = imagenDeBD || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&h=200&fit=crop"
           
           return {
-            id: p.id, // USAR EL ID REAL DE LA BD
+            id: index + 1,
             nombre: p.nombre,
             categoria: p.categoria,
             precio: p.precio,
@@ -1326,29 +988,64 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {productosFiltrados.map((producto) => (
-                  <Card key={producto.id} className="overflow-hidden border-2 hover:border-primary transition-all">
+                  <Card key={`${producto.id}-${producto.nombre}`} className="overflow-hidden border-2 hover:border-primary transition-all">
                     <div className="relative h-48 bg-gray-100 overflow-hidden" style={{ minHeight: '192px' }}>
                       {/* Placeholder mientras carga - más ligero */}
                       <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-0">
                         <div className="w-12 h-12 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
                       </div>
-                      {(() => {
-                        // Buscar cache buster tanto con nombre original como normalizado
-                        const nombreNormalizado = producto.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-                        const cacheBusterValue = imageCacheBuster[producto.nombre] || imageCacheBuster[nombreNormalizado] || 0
-                        // Crear un key único que incluya la imagen original para forzar re-render cuando cambie
-                        const imageKey = producto.imagenOriginal ? 
-                          `${producto.imagenOriginal}-${cacheBusterValue}` : 
-                          `no-img-${cacheBusterValue}`
-                        return (
-                          <ProductImage
-                            key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${imageKey}`}
-                            producto={producto}
-                            refreshKey={refreshKey}
-                            cacheBuster={cacheBusterValue}
-                          />
-                        )
-                      })()}
+                      <img
+                        key={`img-${producto.id}-${producto.nombre}-${refreshKey}-${producto.imagenOriginal || 'no-img'}`}
+                        src={(() => {
+                          // Priorizar imagenOriginal (imagen guardada en BD)
+                          // La imagen ya está comprimida al subir (máximo 800px, calidad 70%)
+                          if (producto.imagenOriginal && producto.imagenOriginal.includes('supabase.co')) {
+                            // Agregar parámetros de caché para mejorar rendimiento
+                            const url = producto.imagenOriginal
+                            // Si no tiene parámetros, agregar timestamp para forzar recarga si es necesario
+                            return url.includes('?') ? url : `${url}?cache=1`
+                          }
+                          // Si no hay imagenOriginal, usar imagen (puede ser por defecto)
+                          return producto.imagen
+                        })()}
+                        alt={producto.nombre}
+                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
+                        loading="lazy"
+                        decoding="async"
+                        fetchPriority="low"
+                        width={400}
+                        height={300}
+                        style={{ 
+                          display: 'block', 
+                          width: '100%', 
+                          height: '100%',
+                          opacity: 0,
+                          objectFit: 'cover'
+                        }}
+                        onLoad={(e) => {
+                          // Mostrar imagen cuando esté cargada
+                          e.currentTarget.style.opacity = '1'
+                          // Ocultar placeholder
+                          const placeholder = e.currentTarget.previousElementSibling as HTMLElement
+                          if (placeholder) {
+                            placeholder.style.opacity = '0'
+                            setTimeout(() => {
+                              placeholder.style.display = 'none'
+                            }, 200)
+                          }
+                        }}
+                        onError={(e) => {
+                          console.error('❌ Error al cargar imagen:', {
+                            nombre: producto.nombre,
+                            imagenOriginal: producto.imagenOriginal,
+                            imagen: producto.imagen
+                          })
+                          // Si falla la carga, usar imagen por defecto solo si no es de Supabase
+                          if (!producto.imagenOriginal || !producto.imagenOriginal.includes('supabase.co')) {
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
+                          }
+                        }}
+                      />
                     </div>
                     <CardHeader>
                       <div className="flex items-start justify-between">
@@ -1630,41 +1327,29 @@ export default function AdminPage() {
                     imageUrlType: typeof imageUrl,
                     imageUrlLength: imageUrl ? imageUrl.length : 0,
                     esSupabase: imageUrl && imageUrl.includes('supabase.co'),
-                    esVacio: imageUrl === '',
                     formProductoActual: formProducto
                   })
                   
-                  // Actualizar el formulario con la URL de la imagen
-                  // 1. Si es una URL de Supabase (imagen subida), guardarla
+                  // CRÍTICO: Actualizar el formulario con la URL de Supabase
+                  // Solo si es una URL válida de Supabase (no Unsplash)
                   if (imageUrl && imageUrl.includes('supabase.co')) {
                     setFormProducto(prev => {
                       const nuevo = { ...prev, imagen: imageUrl }
                       console.log('✅ FormProducto actualizado con imagen Supabase:', nuevo)
                       return nuevo
                     })
-                  } 
-                  // 2. Si se eliminó la imagen (string vacío), limpiar el campo
-                  else if (imageUrl === '') {
+                  } else if (imageUrl === '') {
+                    // Si se eliminó la imagen, limpiar el campo
                     setFormProducto(prev => {
                       const nuevo = { ...prev, imagen: '' }
                       console.log('🗑️ FormProducto actualizado (imagen eliminada):', nuevo)
                       return nuevo
                     })
-                  } 
-                  // 3. Si es una URL válida pero no de Supabase (URL manual), también guardarla
-                  else if (imageUrl && imageUrl.startsWith('http') && !imageUrl.includes('unsplash.com')) {
-                    setFormProducto(prev => {
-                      const nuevo = { ...prev, imagen: imageUrl }
-                      console.log('✅ FormProducto actualizado con URL manual:', nuevo)
-                      return nuevo
-                    })
-                  } 
-                  // 4. Cualquier otro caso, no hacer nada
-                  else {
-                    console.warn('⚠️ URL de imagen no válida o ignorada:', imageUrl)
+                  } else {
+                    console.warn('⚠️ URL de imagen no válida:', imageUrl)
                   }
                 }}
-                productId={productoEditando?.nombre || formProducto.nombre || 'new'}
+                productId={productoEditando?.id.toString()}
                 productName={formProducto.nombre || 'producto'}
               />
               <p className="text-xs text-gray-500 mt-2">
