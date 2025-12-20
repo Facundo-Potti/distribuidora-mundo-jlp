@@ -110,11 +110,29 @@ export async function GET() {
     const productosPorNombre = new Map<string, typeof productosADevolver[0]>()
     productosADevolver.forEach(p => {
       const nombreNormalizado = p.nombre.toLowerCase().trim().replace(/\s+/g, ' ')
-      // Si no existe, agregarlo. Si ya existe, ignorarlo porque ya tenemos el más reciente (debido al ordenamiento)
+      // Si no existe, agregarlo. Si ya existe, comparar updatedAt y quedarse con el más reciente
       if (!productosPorNombre.has(nombreNormalizado)) {
         productosPorNombre.set(nombreNormalizado, p)
+      } else {
+        // Si ya existe, comparar updatedAt y actualizar si el actual es más reciente
+        const existente = productosPorNombre.get(nombreNormalizado)!
+        const updatedAtExistente = existente.updatedAt ? new Date(existente.updatedAt).getTime() : 0
+        const updatedAtActual = p.updatedAt ? new Date(p.updatedAt).getTime() : 0
+        if (updatedAtActual > updatedAtExistente) {
+          productosPorNombre.set(nombreNormalizado, p)
+          // Log cuando encontramos una versión más reciente
+          if (nombreNormalizado.includes('aceituna') && nombreNormalizado.includes('n 0') && nombreNormalizado.includes('5 kg')) {
+            console.log(`[DEBUG] Se encontró versión MÁS RECIENTE de ACEITUNA NEGRA:`, {
+              idAnterior: existente.id,
+              idNuevo: p.id,
+              updatedAtAnterior: existente.updatedAt?.toISOString(),
+              updatedAtNuevo: p.updatedAt?.toISOString(),
+              imagenAnterior: existente.imagen,
+              imagenNueva: p.imagen
+            })
+          }
+        }
       }
-      // Si ya existe, lo ignoramos porque el que ya está en el mapa es más reciente (viene antes en el array ordenado)
     })
     
     // #region agent log
@@ -143,14 +161,23 @@ export async function GET() {
     )
     if (aceitunaNegraFinal) {
       // #region agent log
-      console.log('[DEBUG] Aceituna negra seleccionada final:', {id: aceitunaNegraFinal.id, nombre: aceitunaNegraFinal.nombre, imagen: aceitunaNegraFinal.imagen, updatedAt: aceitunaNegraFinal.updatedAt?.toISOString()});
+      console.log('[DEBUG] Aceituna negra seleccionada final:', {
+        id: aceitunaNegraFinal.id, 
+        nombre: aceitunaNegraFinal.nombre, 
+        imagen: aceitunaNegraFinal.imagen, 
+        updatedAt: aceitunaNegraFinal.updatedAt?.toISOString(),
+        imagenTimestamp: aceitunaNegraFinal.imagen?.match(/\d{13}/)?.[0]
+      });
       // #endregion
       console.log(`🎯 Producto ACEITUNA NEGRA N 0 X 5 KG seleccionado:`, {
         id: aceitunaNegraFinal.id,
         nombre: aceitunaNegraFinal.nombre,
         imagen: aceitunaNegraFinal.imagen,
-        updatedAt: aceitunaNegraFinal.updatedAt?.toISOString()
+        updatedAt: aceitunaNegraFinal.updatedAt?.toISOString(),
+        imagenTimestamp: aceitunaNegraFinal.imagen?.match(/\d{13}/)?.[0]
       })
+    } else {
+      console.log(`⚠️ [DEBUG] ACEITUNA NEGRA N 0 X 5 KG NO ENCONTRADO en productos únicos`)
     }
     
     productosADevolver = productosUnicos
