@@ -65,11 +65,17 @@ export async function PUT(
     }
 
     // Manejar imagen: si viene una URL válida, guardarla; si viene null o vacío, mantener null
-    const imagenParaGuardar = imagen && imagen.trim() !== '' ? imagen.trim() : null
+    // IMPORTANTE: Si imagen viene explícitamente como null o string vacío, se guardará como null
+    // Si imagen viene con una URL válida (no de Unsplash), se guardará esa URL
+    let imagenParaGuardar: string | null = null
+    if (imagen && typeof imagen === 'string' && imagen.trim() !== '' && !imagen.includes('unsplash.com')) {
+      imagenParaGuardar = imagen.trim()
+    }
     
     // Log de la imagen que se va a guardar
     console.log(`💾 Actualizando producto "${nombre}" (ID: ${producto.id})`)
     console.log(`🖼️ Imagen actual en BD: ${producto.imagen || 'null'}`)
+    console.log(`🖼️ Imagen recibida del request: ${imagen || 'null'}`)
     console.log(`🖼️ Imagen nueva a guardar: ${imagenParaGuardar || 'null'}`)
 
     // Preparar datos de actualización

@@ -26,7 +26,10 @@ export function ImageUpload({
   
   // Actualizar preview cuando currentImage cambie (solo imágenes de Supabase)
   useEffect(() => {
-    if (uploading) return // No actualizar durante subida
+    // No actualizar durante subida, ya que se maneja manualmente
+    if (uploading) {
+      return
+    }
     
     // Si hay una imagen válida de Supabase, usarla
     if (
@@ -53,8 +56,9 @@ export function ImageUpload({
       currentImage.startsWith('http') &&
       !currentImage.includes('unsplash.com')
     ) {
-      console.log('🖼️ ImageUpload: Actualizando preview con URL manual:', currentImage.trim())
-      setPreview(currentImage.trim())
+      const imagenTrimmed = currentImage.trim()
+      console.log('🖼️ ImageUpload: Actualizando preview con URL manual:', imagenTrimmed)
+      setPreview(imagenTrimmed)
     }
   }, [currentImage, uploading])
 

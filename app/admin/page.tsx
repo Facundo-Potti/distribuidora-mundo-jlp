@@ -355,12 +355,15 @@ export default function AdminPage() {
         imagenParaFormulario = producto.imagenOriginal.trim()
       } else if (producto.imagen && 
                  typeof producto.imagen === 'string' && 
+                 producto.imagen.trim() !== '' &&
+                 !producto.imagen.includes('unsplash.com') &&
                  producto.imagen.includes('supabase.co')) {
         // Si imagenOriginal no está pero imagen es de Supabase, usarla
         imagenParaFormulario = producto.imagen.trim()
       }
       
       console.log('📝 Abriendo diálogo de edición:', {
+        id: producto.id,
         nombre: producto.nombre,
         imagenOriginal: producto.imagenOriginal,
         imagen: producto.imagen,
@@ -408,14 +411,16 @@ export default function AdminPage() {
       
       // Preparar datos: imagen debe ser null si está vacía, sino la URL completa
       // CRÍTICO: Verificar que la imagen no sea de Unsplash (imagen por defecto)
-      let imagenParaGuardar = null
+      let imagenParaGuardar: string | null = null
       if (formProducto.imagen && 
+          typeof formProducto.imagen === 'string' &&
           formProducto.imagen.trim() !== '' && 
           !formProducto.imagen.includes('unsplash.com')) {
         imagenParaGuardar = formProducto.imagen.trim()
       }
       
       console.log('💾 Guardando producto con imagen:', {
+        productoEditando: productoEditando?.id,
         imagenFormulario: formProducto.imagen,
         imagenParaGuardar: imagenParaGuardar,
         esSupabase: imagenParaGuardar && imagenParaGuardar.includes('supabase.co'),
@@ -423,14 +428,21 @@ export default function AdminPage() {
       })
       
       const bodyData: any = {
-        nombre: formProducto.nombre,
+        nombre: formProducto.nombre.trim(),
         categoria: formProducto.categoria,
         precio: formProducto.precio,
         stock: formProducto.stock,
-        imagen: imagenParaGuardar,
+        imagen: imagenParaGuardar, // Puede ser null (para eliminar) o una URL válida
         descripcion: formProducto.descripcion && formProducto.descripcion.trim() !== '' ? formProducto.descripcion.trim() : null,
         unidad: formProducto.unidad && formProducto.unidad.trim() !== '' ? formProducto.unidad.trim() : null,
       }
+      
+      console.log('📤 Enviando datos a la API:', {
+        url,
+        method,
+        imagenEnBody: bodyData.imagen || 'null',
+        tieneImagen: !!bodyData.imagen
+      })
       
       const response = await fetch(url, {
         method,
