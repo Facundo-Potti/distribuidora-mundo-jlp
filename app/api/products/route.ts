@@ -98,7 +98,28 @@ export async function GET() {
           id: p.id,
           nombre: p.nombre,
           imagen: p.imagen || 'null',
+          imagenTimestamp: p.imagen?.match(/\d{13}/)?.[0],
           updatedAt: p.updatedAt?.toISOString() || 'null',
+          updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0
+        }))
+      )
+    }
+    
+    // Log específico para "ACEITUNA NEGRA N 0 X 5 KG" antes de agrupar
+    const aceitunaNegraAntes = productosADevolver.filter(p => 
+      p.nombre.toLowerCase().includes('aceituna') && 
+      p.nombre.toLowerCase().includes('negra') &&
+      p.nombre.toLowerCase().includes('n 0') &&
+      p.nombre.toLowerCase().includes('5 kg')
+    )
+    if (aceitunaNegraAntes.length > 0) {
+      console.log(`🔍 [DEBUG] ACEITUNA NEGRA N 0 X 5 KG ANTES de agrupar (${aceitunaNegraAntes.length} productos):`, 
+        aceitunaNegraAntes.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          imagen: p.imagen,
+          imagenTimestamp: p.imagen?.match(/\d{13}/)?.[0],
+          updatedAt: p.updatedAt?.toISOString(),
           updatedAtTime: p.updatedAt ? new Date(p.updatedAt).getTime() : 0
         }))
       )
@@ -152,7 +173,7 @@ export async function GET() {
     // Convertir el Map a array
     const productosUnicos: typeof productosADevolver = Array.from(productosPorNombre.values())
     
-    // Log específico para "aceituna negra n 0 x 5 kg"
+    // Log específico para "aceituna negra n 0 x 5 kg" DESPUÉS de agrupar
     const aceitunaNegraFinal = productosUnicos.find(p => 
       p.nombre.toLowerCase().includes('aceituna') && 
       p.nombre.toLowerCase().includes('negra') &&
@@ -161,20 +182,22 @@ export async function GET() {
     )
     if (aceitunaNegraFinal) {
       // #region agent log
-      console.log('[DEBUG] Aceituna negra seleccionada final:', {
+      console.log('[DEBUG] Aceituna negra seleccionada final DESPUÉS de agrupar:', {
         id: aceitunaNegraFinal.id, 
         nombre: aceitunaNegraFinal.nombre, 
         imagen: aceitunaNegraFinal.imagen, 
         updatedAt: aceitunaNegraFinal.updatedAt?.toISOString(),
-        imagenTimestamp: aceitunaNegraFinal.imagen?.match(/\d{13}/)?.[0]
+        imagenTimestamp: aceitunaNegraFinal.imagen?.match(/\d{13}/)?.[0],
+        updatedAtTime: aceitunaNegraFinal.updatedAt ? new Date(aceitunaNegraFinal.updatedAt).getTime() : 0
       });
       // #endregion
-      console.log(`🎯 Producto ACEITUNA NEGRA N 0 X 5 KG seleccionado:`, {
+      console.log(`🎯 [DEBUG] Producto ACEITUNA NEGRA N 0 X 5 KG seleccionado FINAL:`, {
         id: aceitunaNegraFinal.id,
         nombre: aceitunaNegraFinal.nombre,
         imagen: aceitunaNegraFinal.imagen,
+        imagenTimestamp: aceitunaNegraFinal.imagen?.match(/\d{13}/)?.[0],
         updatedAt: aceitunaNegraFinal.updatedAt?.toISOString(),
-        imagenTimestamp: aceitunaNegraFinal.imagen?.match(/\d{13}/)?.[0]
+        updatedAtTime: aceitunaNegraFinal.updatedAt ? new Date(aceitunaNegraFinal.updatedAt).getTime() : 0
       })
     } else {
       console.log(`⚠️ [DEBUG] ACEITUNA NEGRA N 0 X 5 KG NO ENCONTRADO en productos únicos`)
