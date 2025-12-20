@@ -45,15 +45,15 @@ import Image from "next/image"
 import { ImageUpload } from "@/components/ui/image-upload"
 
 // Tipos
-interface Producto {
+type Producto = {
   id: string | number
   nombre: string
   categoria: string
   precio: number
   stock: number
   imagen: string | null
-  descripcion?: string | null
-  unidad?: string | null
+  descripcion: string | null
+  unidad: string | null
 }
 
 interface Pedido {
@@ -80,14 +80,14 @@ export default function AdminPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("dashboard")
 
-  // Estados para productos - NUEVA IMPLEMENTACIÓN LIMPIA
+  // ========== SECCIÓN PRODUCTOS - NUEVA IMPLEMENTACIÓN COMPLETA ==========
   const [productos, setProductos] = useState<Producto[]>([])
-  const [busquedaProductos, setBusquedaProductos] = useState("")
-  const [categoriaFiltro, setCategoriaFiltro] = useState("")
-  const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
-  const [dialogProductoAbierto, setDialogProductoAbierto] = useState(false)
-  const [cargandoProductos, setCargandoProductos] = useState(true)
-  const [formProducto, setFormProducto] = useState({
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("")
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null)
+  const [formData, setFormData] = useState({
     nombre: "",
     categoria: "",
     precio: "",
@@ -118,41 +118,33 @@ export default function AdminPage() {
     telefono: "",
   })
 
-  // Cargar productos - NUEVA IMPLEMENTACIÓN LIMPIA
-  const cargarProductos = async () => {
+  // Función para obtener productos
+  const fetchProducts = async () => {
+    setLoading(true)
     try {
-      setCargandoProductos(true)
-      const response = await fetch(`/api/products?t=${Date.now()}`, {
-        cache: 'no-store',
-      })
-      
-      if (!response.ok) {
-        throw new Error('Error al cargar productos')
-      }
-      
-      const data = await response.json()
-      const productosFormateados: Producto[] = data.map((p: any) => ({
+      const res = await fetch('/api/products')
+      if (!res.ok) throw new Error('Error al cargar productos')
+      const data = await res.json()
+      setProductos(data.map((p: any) => ({
         id: p.id,
-        nombre: p.nombre || '',
-        categoria: p.categoria || '',
-        precio: p.precio || 0,
-        stock: p.stock || 0,
-        imagen: p.imagen || null,
-        descripcion: p.descripcion || null,
-        unidad: p.unidad || null,
-      }))
-      
-      setProductos(productosFormateados)
+        nombre: p.nombre ?? '',
+        categoria: p.categoria ?? '',
+        precio: Number(p.precio) ?? 0,
+        stock: Number(p.stock) ?? 0,
+        imagen: p.imagen ?? null,
+        descripcion: p.descripcion ?? null,
+        unidad: p.unidad ?? null,
+      })))
     } catch (error) {
-      console.error('Error al cargar productos:', error)
-      alert('Error al cargar productos')
+      console.error(error)
+      alert('No se pudieron cargar los productos')
     } finally {
-      setCargandoProductos(false)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    cargarProductos()
+    fetchProducts()
 
     // Cargar pedidos desde localStorage
     const pedidosGuardados = localStorage.getItem("admin_pedidos")
@@ -258,16 +250,16 @@ export default function AdminPage() {
     }
   }, [])
 
-  // Filtrar productos - NUEVA IMPLEMENTACIÓN LIMPIA
-  const productosFiltrados = productos.filter((p) => {
-    const matchBusqueda = !busquedaProductos || 
-      p.nombre.toLowerCase().includes(busquedaProductos.toLowerCase()) ||
-      p.categoria.toLowerCase().includes(busquedaProductos.toLowerCase())
-    const matchCategoria = !categoriaFiltro || p.categoria === categoriaFiltro
-    return matchBusqueda && matchCategoria
+  // Filtros y datos derivados
+  const filteredProducts = productos.filter(p => {
+    const matchesSearch = !searchTerm || 
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = !categoryFilter || p.categoria === categoryFilter
+    return matchesSearch && matchesCategory
   })
-  
-  const categorias = Array.from(new Set(productos.map(p => p.categoria).filter(Boolean)))
+
+  const categories = [...new Set(productos.map(p => p.categoria).filter(Boolean))] as string[]
 
   // Filtrar pedidos
   useEffect(() => {
@@ -296,106 +288,100 @@ export default function AdminPage() {
     // La búsqueda de clientes se maneja en el render
   }, [busquedaClientes])
 
-  // Funciones de productos - NUEVA IMPLEMENTACIÓN LIMPIA
-  const abrirDialogProducto = (producto?: Producto) => {
-    if (producto) {
-      setProductoEditando(producto)
-      setFormProducto({
-        nombre: producto.nombre,
-        categoria: producto.categoria,
-        precio: producto.precio.toString(),
-        stock: producto.stock.toString(),
-        imagen: producto.imagen || "",
-        descripcion: producto.descripcion || "",
-        unidad: producto.unidad || "",
+  // Handlers para productos
+  const openModal = (product?: Producto) => {
+    if (product) {
+      setSelectedProduct(product)
+      setFormData({
+        nombre: product.nombre,
+        categoria: product.categoria,
+        precio: String(product.precio),
+        stock: String(product.stock),
+        imagen: product.imagen ?? '',
+        descripcion: product.descripcion ?? '',
+        unidad: product.unidad ?? '',
       })
     } else {
-      setProductoEditando(null)
-      setFormProducto({
-        nombre: "",
-        categoria: "",
-        precio: "",
-        stock: "",
-        imagen: "",
-        descripcion: "",
-        unidad: "",
+      setSelectedProduct(null)
+      setFormData({
+        nombre: '',
+        categoria: '',
+        precio: '',
+        stock: '',
+        imagen: '',
+        descripcion: '',
+        unidad: '',
       })
     }
-    setDialogProductoAbierto(true)
+    setIsModalOpen(true)
   }
 
-  const guardarProducto = async () => {
-    // Validar campos obligatorios
-    if (!formProducto.nombre.trim() || !formProducto.categoria || !formProducto.precio || !formProducto.stock) {
-      alert("Por favor completa todos los campos obligatorios")
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.nombre.trim() || !formData.categoria || !formData.precio || !formData.stock) {
+      alert('Completa todos los campos obligatorios')
       return
     }
 
+    setLoading(true)
     try {
-      const url = productoEditando 
-        ? `/api/products/${productoEditando.id}`
-        : '/api/products/create'
+      const url = selectedProduct ? `/api/products/${selectedProduct.id}` : '/api/products/create'
+      const method = selectedProduct ? 'PUT' : 'POST'
       
-      const method = productoEditando ? 'PUT' : 'POST'
-      
-      // Preparar imagen: solo guardar si es una URL válida (no vacía y no de Unsplash)
-      const imagenParaGuardar = formProducto.imagen.trim() && !formProducto.imagen.includes('unsplash.com')
-        ? formProducto.imagen.trim()
-        : null
-      
-      const bodyData = {
-        nombre: formProducto.nombre.trim(),
-        categoria: formProducto.categoria,
-        precio: parseFloat(formProducto.precio),
-        stock: parseInt(formProducto.stock),
-        imagen: imagenParaGuardar,
-        descripcion: formProducto.descripcion.trim() || null,
-        unidad: formProducto.unidad.trim() || null,
+      const payload = {
+        nombre: formData.nombre.trim(),
+        categoria: formData.categoria,
+        precio: Number(formData.precio),
+        stock: Number(formData.stock),
+        imagen: formData.imagen.trim() && !formData.imagen.includes('unsplash.com') 
+          ? formData.imagen.trim() 
+          : null,
+        descripcion: formData.descripcion.trim() || null,
+        unidad: formData.unidad.trim() || null,
       }
-      
-      const response = await fetch(url, {
+
+      const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData),
+        body: JSON.stringify(payload),
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Error al guardar producto')
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Error al guardar')
       }
 
-      // Cerrar diálogo y recargar productos
-      setDialogProductoAbierto(false)
-      setProductoEditando(null)
-      await cargarProductos()
-      
+      setIsModalOpen(false)
+      await fetchProducts()
     } catch (error: any) {
-      console.error('Error al guardar producto:', error)
-      alert('Error al guardar producto: ' + error.message)
+      alert(error.message || 'Error al guardar producto')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const eliminarProducto = async (producto: Producto) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar "${producto.nombre}"?`)) {
-      return
-    }
+  const handleDelete = async (id: string | number, nombre: string) => {
+    if (!confirm(`¿Eliminar "${nombre}"?`)) return
 
+    setLoading(true)
     try {
-      const response = await fetch(`/api/products/${producto.id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: producto.nombre }),
+        body: JSON.stringify({ nombre }),
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Error al eliminar producto')
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Error al eliminar')
       }
 
-      await cargarProductos()
+      await fetchProducts()
     } catch (error: any) {
-      console.error('Error al eliminar producto:', error)
-      alert('Error al eliminar producto: ' + error.message)
+      alert(error.message || 'Error al eliminar')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -776,116 +762,147 @@ export default function AdminPage() {
               </div>
             </TabsContent>
 
-            {/* Productos Tab - NUEVA IMPLEMENTACIÓN LIMPIA */}
-            <TabsContent value="productos" className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {/* SECCIÓN PRODUCTOS - FORMATO TABLA */}
+            <TabsContent value="productos" className="space-y-4">
+              {/* Barra de herramientas */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <div className="flex flex-1 gap-3 w-full sm:w-auto">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Buscar productos..."
+                      placeholder="Buscar por nombre o categoría..."
                       className="pl-10"
-                      value={busquedaProductos}
-                      onChange={(e) => setBusquedaProductos(e.target.value)}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <select
-                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={categoriaFiltro}
-                    onChange={(e) => setCategoriaFiltro(e.target.value)}
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="h-10 px-3 rounded-md border border-input bg-background text-sm"
                   >
                     <option value="">Todas las categorías</option>
-                    {categorias.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                 </div>
-                <Button className="gap-2" onClick={() => abrirDialogProducto()}>
+                <Button onClick={() => openModal()} className="gap-2 whitespace-nowrap">
                   <Plus className="h-4 w-4" />
                   Nuevo Producto
                 </Button>
               </div>
 
-              {cargandoProductos ? (
-                <div className="text-center py-12">
-                  <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  <p className="mt-4 text-gray-600">Cargando productos...</p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {productosFiltrados.map((producto) => (
-                      <Card key={producto.id} className="overflow-hidden border-2 hover:border-primary transition-all">
-                        <div className="relative h-48 bg-gray-100">
-                          {producto.imagen ? (
-                            <img
-                              src={producto.imagen}
-                              alt={producto.nombre}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop"
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                              <Package className="w-16 h-16 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <CardTitle className="text-xl">{producto.nombre}</CardTitle>
-                              <CardDescription>{producto.categoria}</CardDescription>
-                            </div>
-                            <div className="flex gap-2 ml-2">
-                              <Button variant="ghost" size="icon" onClick={() => abrirDialogProducto(producto)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => eliminarProducto(producto)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Precio:</span>
-                              <span className="font-bold text-primary">
-                                ${producto.precio.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Stock:</span>
-                              <span className={`font-semibold ${producto.stock > 20 ? 'text-green-600' : 'text-red-600'}`}>
-                                {producto.stock} unidades
-                              </span>
-                            </div>
-                            {producto.unidad && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Unidad:</span>
-                                <span className="text-sm">{producto.unidad}</span>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {productosFiltrados.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-gray-600 text-lg">
-                        {productos.length === 0 
-                          ? "No hay productos registrados"
-                          : "No se encontraron productos con los filtros aplicados"}
-                      </p>
+              {/* Tabla de productos */}
+              <Card>
+                <CardContent className="p-0">
+                  {loading && productos.length === 0 ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-gray-600">Cargando productos...</p>
+                      </div>
+                    </div>
+                  ) : filteredProducts.length === 0 ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="text-center">
+                        <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-600 text-lg">
+                          {productos.length === 0 ? 'No hay productos registrados' : 'No se encontraron resultados'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagen</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {filteredProducts.map((producto) => (
+                            <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                                  {producto.imagen ? (
+                                    <img
+                                      src={producto.imagen}
+                                      alt={producto.nombre}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=100&h=100&fit=crop"
+                                      }}
+                                    />
+                                  ) : (
+                                    <Package className="w-8 h-8 text-gray-400" />
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{producto.nombre}</div>
+                                  {producto.descripcion && (
+                                    <div className="text-sm text-gray-500 truncate max-w-xs">{producto.descripcion}</div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                  {producto.categoria}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-primary">
+                                ${producto.precio.toLocaleString('es-AR')}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`text-sm font-medium ${producto.stock > 20 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {producto.stock}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {producto.unidad || '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openModal(producto)}
+                                    className="h-8 w-8"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDelete(producto.id, producto.nombre)}
+                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
-                </>
+                </CardContent>
+              </Card>
+
+              {/* Información de resultados */}
+              {filteredProducts.length > 0 && (
+                <div className="text-sm text-gray-600">
+                  Mostrando {filteredProducts.length} de {productos.length} productos
+                </div>
               )}
             </TabsContent>
 
@@ -1048,25 +1065,30 @@ export default function AdminPage() {
       </main>
       <Footer />
 
-      {/* Dialog para Producto - NUEVA IMPLEMENTACIÓN LIMPIA */}
-      <Dialog open={dialogProductoAbierto} onOpenChange={setDialogProductoAbierto}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Modal de Producto - Formulario Completo */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {productoEditando ? "Editar Producto" : "Nuevo Producto"}
+            <DialogTitle className="text-2xl">
+              {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}
             </DialogTitle>
             <DialogDescription>
-              {productoEditando ? "Modifica la información del producto" : "Completa los datos del nuevo producto"}
+              {selectedProduct 
+                ? 'Modifica la información del producto' 
+                : 'Completa todos los campos para crear un nuevo producto'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+
+          <form onSubmit={handleSubmit} className="space-y-6 py-4">
+            {/* Fila 1: Nombre y Categoría */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre *</Label>
+                <Label htmlFor="nombre">Nombre del Producto *</Label>
                 <Input
                   id="nombre"
-                  value={formProducto.nombre}
-                  onChange={(e) => setFormProducto({ ...formProducto, nombre: e.target.value })}
+                  required
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   placeholder="Ej: Harina 0000"
                 />
               </div>
@@ -1074,91 +1096,118 @@ export default function AdminPage() {
                 <Label htmlFor="categoria">Categoría *</Label>
                 <select
                   id="categoria"
+                  required
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
                   className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={formProducto.categoria}
-                  onChange={(e) => setFormProducto({ ...formProducto, categoria: e.target.value })}
                 >
-                  <option value="">Seleccionar...</option>
+                  <option value="">Selecciona una categoría</option>
                   <option value="Harinas">Harinas</option>
                   <option value="Azúcares">Azúcares</option>
                   <option value="Levaduras">Levaduras</option>
                   <option value="Chocolates">Chocolates</option>
                   <option value="Frutas Secas">Frutas Secas</option>
                   <option value="Grasas">Grasas</option>
+                  <option value="Conservas">Conservas</option>
+                  <option value="Otros">Otros</option>
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            {/* Fila 2: Precio y Stock */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="precio">Precio *</Label>
+                <Label htmlFor="precio">Precio (ARS) *</Label>
                 <Input
                   id="precio"
                   type="number"
                   step="0.01"
-                  value={formProducto.precio}
-                  onChange={(e) => setFormProducto({ ...formProducto, precio: e.target.value })}
+                  min="0"
+                  required
+                  value={formData.precio}
+                  onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
                   placeholder="15000"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="stock">Stock *</Label>
+                <Label htmlFor="stock">Stock Disponible *</Label>
                 <Input
                   id="stock"
                   type="number"
-                  value={formProducto.stock}
-                  onChange={(e) => setFormProducto({ ...formProducto, stock: e.target.value })}
+                  min="0"
+                  required
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                   placeholder="45"
                 />
               </div>
             </div>
+
+            {/* Imagen */}
             <div className="space-y-2">
               <Label>Imagen del Producto</Label>
               <ImageUpload
-                currentImage={formProducto.imagen}
+                currentImage={formData.imagen}
                 onImageUploaded={(imageUrl) => {
-                  setFormProducto(prev => ({ ...prev, imagen: imageUrl || "" }))
+                  setFormData(prev => ({ ...prev, imagen: imageUrl || '' }))
                 }}
-                productId={productoEditando?.id?.toString()}
-                productName={formProducto.nombre || 'producto'}
+                productId={selectedProduct?.id?.toString()}
+                productName={formData.nombre || 'producto'}
               />
-              <p className="text-xs text-gray-500 mt-2">
-                O ingresa una URL manualmente:
+              <p className="text-xs text-gray-500">
+                También puedes ingresar una URL de imagen manualmente
               </p>
               <Input
-                id="imagen"
-                value={formProducto.imagen}
-                onChange={(e) => setFormProducto({ ...formProducto, imagen: e.target.value })}
-                placeholder="https://..."
+                value={formData.imagen}
+                onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
+                placeholder="https://ejemplo.com/imagen.jpg"
               />
             </div>
+
+            {/* Fila 3: Unidad y Descripción */}
             <div className="space-y-2">
-              <Label htmlFor="unidad">Unidad</Label>
+              <Label htmlFor="unidad">Unidad de Medida</Label>
               <Input
                 id="unidad"
-                value={formProducto.unidad}
-                onChange={(e) => setFormProducto({ ...formProducto, unidad: e.target.value })}
-                placeholder="Ej: bolsa 25kg"
+                value={formData.unidad}
+                onChange={(e) => setFormData({ ...formData, unidad: e.target.value })}
+                placeholder="Ej: bolsa 25kg, caja x12 unidades"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="descripcion">Descripción</Label>
               <textarea
                 id="descripcion"
-                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={formProducto.descripcion}
-                onChange={(e) => setFormProducto({ ...formProducto, descripcion: e.target.value })}
-                placeholder="Descripción del producto..."
+                rows={4}
+                value={formData.descripcion}
+                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                placeholder="Descripción detallada del producto..."
               />
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogProductoAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={guardarProducto}>
-              {productoEditando ? "Guardar Cambios" : "Crear Producto"}
-            </Button>
-          </DialogFooter>
+
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Guardando...
+                  </>
+                ) : (
+                  selectedProduct ? 'Guardar Cambios' : 'Crear Producto'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
