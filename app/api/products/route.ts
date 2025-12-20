@@ -121,8 +121,6 @@ export async function GET() {
     })
     
     // #region agent log
-    const fs = await import('fs/promises');
-    const logPath = 'c:\\Users\\USUARIO\\distribuidora-mundo-jlp\\.cursor\\debug.log';
     // Contar cuántos productos se están ignorando (duplicados)
     const productosIgnorados: Array<{nombre: string, producto: any}> = []
     productosADevolver.forEach(p => {
