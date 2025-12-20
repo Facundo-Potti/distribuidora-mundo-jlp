@@ -118,14 +118,21 @@ export default function AdminPage() {
     telefono: "",
   })
 
-  // Función para obtener productos
+  // Función para obtener productos - FORZAR SIN CACHÉ
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/products')
+      const res = await fetch(`/api/products?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      })
       if (!res.ok) throw new Error('Error al cargar productos')
       const data = await res.json()
-      setProductos(data.map((p: any) => ({
+      const productosActualizados = data.map((p: any) => ({
         id: p.id,
         nombre: p.nombre ?? '',
         categoria: p.categoria ?? '',
@@ -134,9 +141,11 @@ export default function AdminPage() {
         imagen: p.imagen ?? null,
         descripcion: p.descripcion ?? null,
         unidad: p.unidad ?? null,
-      })))
+      }))
+      setProductos(productosActualizados)
+      console.log('✅ Productos cargados:', productosActualizados.length)
     } catch (error) {
-      console.error(error)
+      console.error('❌ Error al cargar productos:', error)
       alert('No se pudieron cargar los productos')
     } finally {
       setLoading(false)
@@ -341,9 +350,14 @@ export default function AdminPage() {
         unidad: formData.unidad.trim() || null,
       }
 
+      console.log('📤 Enviando:', { url, method, payload })
+
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify(payload),
       })
 
@@ -352,9 +366,19 @@ export default function AdminPage() {
         throw new Error(error.error || 'Error al guardar')
       }
 
+      const resultado = await res.json()
+      console.log('✅ Producto guardado:', resultado)
+
+      // Cerrar modal y recargar
       setIsModalOpen(false)
+      setSelectedProduct(null)
+      
+      // Esperar un poco y recargar productos
+      await new Promise(resolve => setTimeout(resolve, 300))
       await fetchProducts()
+      
     } catch (error: any) {
+      console.error('❌ Error:', error)
       alert(error.message || 'Error al guardar producto')
     } finally {
       setLoading(false)
@@ -366,9 +390,14 @@ export default function AdminPage() {
 
     setLoading(true)
     try {
+      console.log('🗑️ Eliminando producto:', { id, nombre })
+      
       const res = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify({ nombre }),
       })
 
@@ -377,8 +406,15 @@ export default function AdminPage() {
         throw new Error(error.error || 'Error al eliminar')
       }
 
+      const resultado = await res.json()
+      console.log('✅ Producto eliminado:', resultado)
+
+      // Esperar un poco y recargar productos
+      await new Promise(resolve => setTimeout(resolve, 300))
       await fetchProducts()
+      
     } catch (error: any) {
+      console.error('❌ Error al eliminar:', error)
       alert(error.message || 'Error al eliminar')
     } finally {
       setLoading(false)
