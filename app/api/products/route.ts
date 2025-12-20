@@ -12,10 +12,7 @@ export async function GET() {
     })
     
     // #region agent log
-    const fs = await import('fs/promises');
-    const logPath = 'c:\\Users\\USUARIO\\distribuidora-mundo-jlp\\.cursor\\debug.log';
-    const logEntry = JSON.stringify({location:'api/products/route.ts:8',message:'Productos obtenidos de BD',data:{total:allProducts.length,primeros3:allProducts.slice(0,3).map(p=>({id:p.id,nombre:p.nombre,imagen:p.imagen}))},timestamp:Date.now(),sessionId:'debug-session',runId:'get-products',hypothesisId:'A'})+'\n';
-    fs.appendFile(logPath, logEntry).catch(()=>{});
+    console.log('[DEBUG] Productos obtenidos de BD:', {total: allProducts.length, primeros3: allProducts.slice(0,3).map(p=>({id:p.id,nombre:p.nombre,imagen:p.imagen}))});
     // #endregion
     console.log(`📦 API /products: Total productos en BD: ${allProducts.length}`)
     
@@ -130,8 +127,7 @@ export async function GET() {
       }
     })
     if (productosIgnorados.length > 0 && productosIgnorados.some(({nombre}) => nombre.includes('aceituna'))) {
-      const logEntry = JSON.stringify({location:'api/products/route.ts:119',message:'Productos duplicados ignorados',data:{totalIgnorados:productosIgnorados.length,aceitunas:productosIgnorados.filter(({nombre})=>nombre.includes('aceituna'))},timestamp:Date.now(),sessionId:'debug-session',runId:'get-products',hypothesisId:'A'})+'\n';
-      fs.appendFile(logPath, logEntry).catch(()=>{});
+      console.log('[DEBUG] Productos duplicados ignorados:', {totalIgnorados: productosIgnorados.length, aceitunas: productosIgnorados.filter(({nombre})=>nombre.includes('aceituna'))});
     }
     // #endregion
     
@@ -147,8 +143,7 @@ export async function GET() {
     )
     if (aceitunaNegraFinal) {
       // #region agent log
-      const logEntryAceituna = JSON.stringify({location:'api/products/route.ts:132',message:'Aceituna negra seleccionada final',data:{id:aceitunaNegraFinal.id,nombre:aceitunaNegraFinal.nombre,imagen:aceitunaNegraFinal.imagen,updatedAt:aceitunaNegraFinal.updatedAt?.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'get-products',hypothesisId:'A'})+'\n';
-      fs.appendFile(logPath, logEntryAceituna).catch(()=>{});
+      console.log('[DEBUG] Aceituna negra seleccionada final:', {id: aceitunaNegraFinal.id, nombre: aceitunaNegraFinal.nombre, imagen: aceitunaNegraFinal.imagen, updatedAt: aceitunaNegraFinal.updatedAt?.toISOString()});
       // #endregion
       console.log(`🎯 Producto ACEITUNA NEGRA N 0 X 5 KG seleccionado:`, {
         id: aceitunaNegraFinal.id,
@@ -202,8 +197,7 @@ export async function GET() {
     console.log(`✅ Devolviendo ${productosADevolver.length} productos únicos (más reciente por nombre normalizado)`)
     
     // #region agent log
-    const logEntryFinal = JSON.stringify({location:'api/products/route.ts:188',message:'Productos finales devueltos',data:{total:productosADevolver.length,productosConImagen:productosADevolver.filter(p=>p.imagen).length,aceitunaNegra:productosADevolver.find(p=>p.nombre.toLowerCase().includes('aceituna')&&p.nombre.toLowerCase().includes('negra'))?.imagen},timestamp:Date.now(),sessionId:'debug-session',runId:'get-products',hypothesisId:'E'})+'\n';
-    fs.appendFile(logPath, logEntryFinal).catch(()=>{});
+    console.log('[DEBUG] Productos finales devueltos:', {total: productosADevolver.length, productosConImagen: productosADevolver.filter(p=>p.imagen).length, aceitunaNegra: productosADevolver.find(p=>p.nombre.toLowerCase().includes('aceituna')&&p.nombre.toLowerCase().includes('negra'))?.imagen});
     // #endregion
     
     // Agregar headers para evitar cache
