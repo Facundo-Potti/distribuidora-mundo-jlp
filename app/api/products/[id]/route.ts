@@ -120,8 +120,15 @@ export async function PUT(
       updatedAt: productoActualizado.updatedAt?.toISOString() || 'null'
     })
 
-    // Devolver el producto actualizado inmediatamente
-    return NextResponse.json(productoActualizado, { status: 200 })
+    // Devolver el producto actualizado inmediatamente con headers sin caché
+    return NextResponse.json(productoActualizado, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    })
   } catch (error: any) {
     console.error('Error al actualizar producto:', error)
     return NextResponse.json(
@@ -134,7 +141,7 @@ export async function PUT(
 // Eliminar un producto
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación y rol de admin
@@ -147,11 +154,14 @@ export async function DELETE(
       )
     }
 
+    // En Next.js 14+, params es una Promise que necesita ser awaited
+    const { id: idFromParams } = await params
+
     // Intentar buscar por ID primero (desde params)
     let producto = null
     try {
       producto = await prisma.product.findUnique({
-        where: { id: params.id },
+        where: { id: idFromParams },
       })
     } catch (error) {
       // Si falla buscar por ID, producto seguirá siendo null
@@ -185,7 +195,13 @@ export async function DELETE(
       data: { activo: false },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    })
   } catch (error: any) {
     console.error('Error al eliminar producto:', error)
     return NextResponse.json(

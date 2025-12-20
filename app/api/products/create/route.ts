@@ -73,7 +73,13 @@ export async function POST(request: NextRequest) {
         imagenEsNull: productoActualizado.imagen === null
       })
 
-      return NextResponse.json(productoActualizado)
+      return NextResponse.json(productoActualizado, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      })
     }
 
     // Crear nuevo producto
@@ -89,7 +95,13 @@ export async function POST(request: NextRequest) {
       imagenEsNull: nuevoProducto.imagen === null
     })
 
-    return NextResponse.json(nuevoProducto)
+    return NextResponse.json(nuevoProducto, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    })
   } catch (error: any) {
     console.error('Error al crear producto:', error)
     return NextResponse.json(

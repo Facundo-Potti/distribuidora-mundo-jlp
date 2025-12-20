@@ -119,19 +119,29 @@ export default function AdminPage() {
   })
 
   // Función para obtener productos - FORZAR SIN CACHÉ
-  const fetchProducts = async () => {
-    setLoading(true)
+  const fetchProducts = async (showLoading = false) => {
+    if (showLoading) setLoading(true)
     try {
-      const res = await fetch(`/api/products?t=${Date.now()}`, {
+      const timestamp = Date.now()
+      const random = Math.random()
+      const res = await fetch(`/api/products?t=${timestamp}&r=${random}`, {
         method: 'GET',
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
         },
       })
-      if (!res.ok) throw new Error('Error al cargar productos')
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Error al cargar productos')
+      }
+      
       const data = await res.json()
+      console.log('📥 Datos recibidos:', data.length, 'productos')
+      
       const productosActualizados = data.map((p: any) => ({
         id: p.id,
         nombre: p.nombre ?? '',
@@ -142,18 +152,20 @@ export default function AdminPage() {
         descripcion: p.descripcion ?? null,
         unidad: p.unidad ?? null,
       }))
-      setProductos(productosActualizados)
-      console.log('✅ Productos cargados:', productosActualizados.length)
-    } catch (error) {
+      
+      console.log('✅ Actualizando estado con', productosActualizados.length, 'productos')
+      setProductos([...productosActualizados])
+      
+    } catch (error: any) {
       console.error('❌ Error al cargar productos:', error)
-      alert('No se pudieron cargar los productos')
+      alert('No se pudieron cargar los productos: ' + (error.message || 'Error desconocido'))
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchProducts()
+    fetchProducts(true)
 
     // Cargar pedidos desde localStorage
     const pedidosGuardados = localStorage.getItem("admin_pedidos")
@@ -333,7 +345,9 @@ export default function AdminPage() {
       return
     }
 
-    setLoading(true)
+    const isLoadingState = true
+    setLoading(isLoadingState)
+    
     try {
       const url = selectedProduct ? `/api/products/${selectedProduct.id}` : '/api/products/create'
       const method = selectedProduct ? 'PUT' : 'POST'
@@ -350,37 +364,35 @@ export default function AdminPage() {
         unidad: formData.unidad.trim() || null,
       }
 
-      console.log('📤 Enviando:', { url, method, payload })
+      console.log('📤 Enviando request:', { url, method, payload })
 
       const res = await fetch(url, {
         method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
+      const responseData = await res.json()
+
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Error al guardar')
+        throw new Error(responseData.error || 'Error al guardar')
       }
 
-      const resultado = await res.json()
-      console.log('✅ Producto guardado:', resultado)
+      console.log('✅ Respuesta recibida:', responseData)
 
-      // Cerrar modal y recargar
+      // Cerrar modal PRIMERO
       setIsModalOpen(false)
       setSelectedProduct(null)
-      
-      // Esperar un poco y recargar productos
-      await new Promise(resolve => setTimeout(resolve, 300))
-      await fetchProducts()
+      setLoading(false)
+
+      // Recargar productos INMEDIATAMENTE sin delay (sin mostrar loading)
+      console.log('🔄 Recargando productos...')
+      await fetchProducts(false)
+      console.log('✅ Productos recargados')
       
     } catch (error: any) {
-      console.error('❌ Error:', error)
+      console.error('❌ Error al guardar:', error)
       alert(error.message || 'Error al guardar producto')
-    } finally {
       setLoading(false)
     }
   }
@@ -394,29 +406,27 @@ export default function AdminPage() {
       
       const res = await fetch(`/api/products/${id}`, {
         method: 'DELETE',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre }),
       })
 
+      const responseData = await res.json()
+
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Error al eliminar')
+        throw new Error(responseData.error || 'Error al eliminar')
       }
 
-      const resultado = await res.json()
-      console.log('✅ Producto eliminado:', resultado)
+      console.log('✅ Producto eliminado:', responseData)
+      setLoading(false)
 
-      // Esperar un poco y recargar productos
-      await new Promise(resolve => setTimeout(resolve, 300))
-      await fetchProducts()
+      // Recargar productos INMEDIATAMENTE (sin mostrar loading)
+      console.log('🔄 Recargando productos después de eliminar...')
+      await fetchProducts(false)
+      console.log('✅ Productos recargados')
       
     } catch (error: any) {
       console.error('❌ Error al eliminar:', error)
       alert(error.message || 'Error al eliminar')
-    } finally {
       setLoading(false)
     }
   }
@@ -849,7 +859,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto" key={`products-container-${refreshCounter}`}>
                       <table className="w-full">
                         <thead className="bg-gray-50 border-b">
                           <tr>
@@ -864,7 +874,7 @@ export default function AdminPage() {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {filteredProducts.map((producto) => (
-                            <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
+                            <tr key={`prod-${producto.id}-${refreshCounter}`} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                                   {producto.imagen ? (
